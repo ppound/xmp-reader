@@ -37,6 +37,11 @@ if (Test-Path $dll) {
     Write-Host "DLL not found at $dll - skipping unregistration."
 }
 
+# --- Stop Explorer to release file locks ---
+Write-Host "Stopping Explorer ..."
+Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 800
+
 # --- Remove files ---
 if (Test-Path $installDir) {
     Write-Host "Removing $installDir ..."
@@ -44,9 +49,7 @@ if (Test-Path $installDir) {
 }
 
 # --- Restart Explorer ---
-Write-Host "Restarting Explorer ..."
-Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 800
+Write-Host "Starting Explorer ..."
 Start-Process explorer.exe
 
 Write-Host ""
