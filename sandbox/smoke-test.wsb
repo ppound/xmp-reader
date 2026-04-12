@@ -1,0 +1,36 @@
+<Configuration>
+  <!--
+    xmp-reader Windows Sandbox smoke-test
+    ======================================
+    Mounts the Rust release build output and sandbox scripts into a clean sandbox,
+    registers the property handler DLL, then opens Explorer to the test-fixtures
+    folder so you can verify XMP fields appear in the Details pane.
+
+    Prerequisites:
+      - Build the project first: cargo build --release (inside the VM)
+      - Add JPEG+XMP sidecar pairs to sandbox\test-fixtures\ (done in M2)
+
+    If your project root is not C:\Users\paulp\claude-code\xmp-reader,
+    update the two HostFolder paths below.
+  -->
+  <MappedFolders>
+
+    <!-- Rust release build output — provides xmp_reader.dll -->
+    <MappedFolder>
+      <HostFolder>C:\Users\paulp\claude-code\xmp-reader\target\x86_64-pc-windows-msvc\release</HostFolder>
+      <SandboxFolder>C:\xmp-reader\bin</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+
+    <!-- Sandbox scripts and test fixtures (this folder) -->
+    <MappedFolder>
+      <HostFolder>C:\Users\paulp\claude-code\xmp-reader\sandbox</HostFolder>
+      <SandboxFolder>C:\xmp-reader\sandbox</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+
+  </MappedFolders>
+  <LogonCommand>
+    <Command>powershell.exe -ExecutionPolicy Bypass -File C:\xmp-reader\sandbox\install.ps1</Command>
+  </LogonCommand>
+</Configuration>

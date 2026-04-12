@@ -1,0 +1,8 @@
+# Normalize line endings on commit; check out as CRLF on Windows
+* text=auto eol=crlf
+
+# Rust source — LF only (rustfmt convention)
+*.rs text eol=lf
+
+# Lock files — preserve exactly
+Cargo.lock -text
