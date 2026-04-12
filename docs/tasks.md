@@ -2,8 +2,8 @@
 
 > Updated 2026-04-12.
 >
-> **Current milestone: M3 — XMP-to-PKEY mapping.**
-> **Next action: wire sidecar parsing into the property handler so XMP fields appear in Explorer.**
+> **Current milestone: M4 — Embedded metadata fallback + merge.**
+> **Next action: read embedded EXIF/XMP from JPEGs via WIC so sidecar-less files don't regress.**
 
 ## M0.5 tasks
 
@@ -121,10 +121,21 @@ keywords, creators, date_taken, headline, location into `XmpFields` struct.
 All pass. `xmp_toolkit` v1.12.1 with `crt_static` feature.
 **Status:** completed 2026-04-12.
 
+## M3 tasks
+
+### #14 — XMP-to-PKEY mapping ✅ DONE
+`src/pkeys.rs`: PROPERTYKEY constants + rating conversion (1-5 stars -> 0-99 scale).
+`src/handler.rs`: rewritten to call `find_sidecar` + `parse_sidecar` in Initialize,
+build dynamic property list, serve real values via GetCount/GetAt/GetValue.
+Mapped: Title, Comment, Keywords, Author, Rating, DateTaken, Photo.Event.
+Verified in Explorer Details pane on Desktop JPEG+sidecar pair: all fields visible
+except Photo.Event (not displayed by default in Details pane - acceptable).
+**Status:** completed 2026-04-12.
+
 ## Resume here
 
-Next: M3 — XMP-to-PKEY mapping. Wire `sidecar.rs` into `handler.rs` so parsed XMP
-fields reach Explorer Details pane on real JPEG+sidecar pairs.
+Next: M4 — Embedded metadata fallback + merge. Installing our handler should not
+regress Details pane on sidecar-less JPEGs (read embedded EXIF/XMP via WIC).
 
 ## Context notes
 

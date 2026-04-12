@@ -1,24 +1,83 @@
+use std::path::Path;
 use std::sync::Mutex;
 
 use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::System::Com::*;
-use windows_core::PROPVARIANT;
 use windows::Win32::UI::Shell::PropertiesSystem::*;
+use windows_core::PROPVARIANT;
 
-/// System.Comment property key.
-/// {F29F85E0-4FF9-1068-AB91-08002B27B3D9} pid 6
-const PKEY_COMMENT: PROPERTYKEY = PROPERTYKEY {
-    fmtid: GUID {
-        data1: 0xF29F85E0,
-        data2: 0x4FF9,
-        data3: 0x1068,
-        data4: [0xAB, 0x91, 0x08, 0x00, 0x2B, 0x27, 0xB3, 0xD9],
-    },
-    pid: 6,
-};
+use crate::pkeys::*;
+use crate::sidecar::{self, XmpFields};
 
 const STG_E_ACCESSDENIED: HRESULT = HRESULT(0x80030005_u32 as i32);
+
+/// A property entry: the PKEY and the PROPVARIANT value to return for it.
+struct PropEntry {
+    key: PROPERTYKEY,
+    value: PROPVARIANT,
+}
+
+/// Build the list of properties to expose from parsed XMP fields.
+fn build_properties(fields: &XmpFields) -> Vec<PropEntry> {
+    let mut props = Vec::new();
+
+    if let Some(ref title) = fields.title {
+        props.push(PropEntry {
+            key: PKEY_TITLE,
+            value: PROPVARIANT::from(BSTR::from(title.as_str())),
+        });
+    }
+
+    if let Some(ref desc) = fields.description {
+        props.push(PropEntry {
+            key: PKEY_COMMENT,
+            value: PROPVARIANT::from(BSTR::from(desc.as_str())),
+        });
+    }
+
+    if !fields.keywords.is_empty() {
+        // System.Keywords expects VT_VECTOR|VT_LPWSTR, but Explorer also
+        // accepts a semicolon-separated VT_BSTR string.
+        let joined = fields.keywords.join("; ");
+        props.push(PropEntry {
+            key: PKEY_KEYWORDS,
+            value: PROPVARIANT::from(BSTR::from(joined.as_str())),
+        });
+    }
+
+    if !fields.creators.is_empty() {
+        let joined = fields.creators.join("; ");
+        props.push(PropEntry {
+            key: PKEY_AUTHOR,
+            value: PROPVARIANT::from(BSTR::from(joined.as_str())),
+        });
+    }
+
+    if let Some(stars) = fields.rating {
+        let win_rating = xmp_rating_to_windows(stars);
+        props.push(PropEntry {
+            key: PKEY_RATING,
+            value: PROPVARIANT::from(win_rating),
+        });
+    }
+
+    if let Some(ref date) = fields.date_taken {
+        props.push(PropEntry {
+            key: PKEY_DATE_TAKEN,
+            value: PROPVARIANT::from(BSTR::from(date.as_str())),
+        });
+    }
+
+    if let Some(ref headline) = fields.headline {
+        props.push(PropEntry {
+            key: PKEY_PHOTO_EVENT,
+            value: PROPVARIANT::from(BSTR::from(headline.as_str())),
+        });
+    }
+
+    props
+}
 
 // ---------------------------------------------------------------------------
 // Property handler - the COM object Explorer creates per file
@@ -26,46 +85,69 @@ const STG_E_ACCESSDENIED: HRESULT = HRESULT(0x80030005_u32 as i32);
 
 #[implement(IInitializeWithFile, IPropertyStore, IPropertyStoreCapabilities)]
 pub struct PropertyHandler {
-    path: Mutex<Option<String>>,
+    state: Mutex<HandlerState>,
+}
+
+struct HandlerState {
+    props: Vec<PropEntry>,
 }
 
 impl PropertyHandler {
     fn new() -> Self {
         Self {
-            path: Mutex::new(None),
+            state: Mutex::new(HandlerState { props: Vec::new() }),
         }
     }
 }
 
 impl IInitializeWithFile_Impl for PropertyHandler_Impl {
     fn Initialize(&self, pszfilepath: &PCWSTR, _grfmode: u32) -> Result<()> {
-        let s = unsafe { pszfilepath.to_string()? };
-        *self.path.lock().unwrap() = Some(s);
+        let path_str = unsafe { pszfilepath.to_string()? };
+        let path = Path::new(&path_str);
+
+        let mut state = self.state.lock().unwrap();
+
+        if let Some(sidecar_path) = sidecar::find_sidecar(path) {
+            if let Ok(fields) = sidecar::parse_sidecar(&sidecar_path) {
+                state.props = build_properties(&fields);
+            }
+        }
+
         Ok(())
     }
 }
 
 impl IPropertyStore_Impl for PropertyHandler_Impl {
     fn GetCount(&self) -> Result<u32> {
-        Ok(1)
+        let state = self.state.lock().unwrap();
+        Ok(state.props.len() as u32)
     }
 
     fn GetAt(&self, iprop: u32, pkey: *mut PROPERTYKEY) -> Result<()> {
-        if iprop != 0 || pkey.is_null() {
+        if pkey.is_null() {
             return Err(E_INVALIDARG.into());
         }
-        unsafe { *pkey = PKEY_COMMENT };
-        Ok(())
+        let state = self.state.lock().unwrap();
+        match state.props.get(iprop as usize) {
+            Some(entry) => {
+                unsafe { *pkey = entry.key };
+                Ok(())
+            }
+            None => Err(E_INVALIDARG.into()),
+        }
     }
 
     fn GetValue(&self, key: *const PROPERTYKEY) -> Result<PROPVARIANT> {
         let key = unsafe { &*key };
-        if key.fmtid == PKEY_COMMENT.fmtid && key.pid == PKEY_COMMENT.pid {
-            let value = BSTR::from("XMP sidecar handler active");
-            Ok(PROPVARIANT::from(value))
-        } else {
-            Ok(PROPVARIANT::default())
+        let state = self.state.lock().unwrap();
+        for entry in &state.props {
+            if entry.key.fmtid == key.fmtid && entry.key.pid == key.pid {
+                // Clone the PROPVARIANT for the caller.
+                return Ok(entry.value.clone());
+            }
         }
+        // Property not found - return empty.
+        Ok(PROPVARIANT::default())
     }
 
     fn SetValue(&self, _key: *const PROPERTYKEY, _propvar: *const PROPVARIANT) -> Result<()> {
@@ -79,13 +161,12 @@ impl IPropertyStore_Impl for PropertyHandler_Impl {
 
 impl IPropertyStoreCapabilities_Impl for PropertyHandler_Impl {
     fn IsPropertyWritable(&self, _key: *const PROPERTYKEY) -> Result<()> {
-        // S_FALSE = not writable. The macro converts Err(S_FALSE) to HRESULT(1).
         Err(Error::from(S_FALSE))
     }
 }
 
 // ---------------------------------------------------------------------------
-// Class factory - COM asks for this via DllGetClassObject
+// Class factory
 // ---------------------------------------------------------------------------
 
 #[implement(IClassFactory)]
@@ -111,8 +192,6 @@ impl IClassFactory_Impl for HandlerFactory_Impl {
             let handler = PropertyHandler::new();
             let unknown: IUnknown = handler.into();
 
-            // QueryInterface for the requested interface. QI AddRefs for ppvobject;
-            // unknown drops afterwards (Release), leaving the caller with one ref.
             let this: *mut core::ffi::c_void = core::mem::transmute_copy(&unknown);
             let hr = (unknown.vtable().QueryInterface)(this, riid, ppvobject);
             hr.ok()

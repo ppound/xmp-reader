@@ -1,4 +1,5 @@
 mod handler;
+mod pkeys;
 mod registry;
 mod sidecar;
 
