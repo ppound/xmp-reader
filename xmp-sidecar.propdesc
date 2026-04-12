@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://schemas.microsoft.com/windows/2006/propertydescription"
+        schemaVersion="1.0">
+
+  <propertyDescriptionList publisher="XmpSidecar" product="XmpReader">
+
+    <!-- XmpSidecar.Headline  {B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B} pid 2 -->
+    <propertyDescription
+        name="XmpSidecar.Headline"
+        formatID="{B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B}"
+        propID="2">
+      <searchInfo inInvertedIndex="true" isColumn="true" />
+      <typeInfo type="String" multipleValues="false" isViewable="true" />
+      <labelInfo label="XMP Headline" />
+      <displayInfo defaultColumnWidth="20">
+        <stringFormat formatAs="General" />
+      </displayInfo>
+    </propertyDescription>
+
+    <!-- XmpSidecar.Location  {B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B} pid 3 -->
+    <propertyDescription
+        name="XmpSidecar.Location"
+        formatID="{B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B}"
+        propID="3">
+      <searchInfo inInvertedIndex="true" isColumn="true" />
+      <typeInfo type="String" multipleValues="false" isViewable="true" />
+      <labelInfo label="XMP Location" />
+      <displayInfo defaultColumnWidth="20">
+        <stringFormat formatAs="General" />
+      </displayInfo>
+    </propertyDescription>
+
+    <!-- XmpSidecar.PersonInImage  {B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B} pid 4 -->
+    <propertyDescription
+        name="XmpSidecar.PersonInImage"
+        formatID="{B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B}"
+        propID="4">
+      <searchInfo inInvertedIndex="true" isColumn="true" />
+      <typeInfo type="String" multipleValues="false" isViewable="true" />
+      <labelInfo label="People in Image" />
+      <displayInfo defaultColumnWidth="24">
+        <stringFormat formatAs="General" />
+      </displayInfo>
+    </propertyDescription>
+
+    <!-- XmpSidecar.Place  {B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B} pid 5 -->
+    <propertyDescription
+        name="XmpSidecar.Place"
+        formatID="{B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B}"
+        propID="5">
+      <searchInfo inInvertedIndex="true" isColumn="true" />
+      <typeInfo type="String" multipleValues="false" isViewable="true" />
+      <labelInfo label="Place" />
+      <displayInfo defaultColumnWidth="16">
+        <stringFormat formatAs="General" />
+      </displayInfo>
+    </propertyDescription>
+
+    <!-- XmpSidecar.CloudUploads  {B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B} pid 6 -->
+    <propertyDescription
+        name="XmpSidecar.CloudUploads"
+        formatID="{B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B}"
+        propID="6">
+      <searchInfo inInvertedIndex="true" isColumn="true" />
+      <typeInfo type="String" multipleValues="false" isViewable="true" />
+      <labelInfo label="Cloud Uploads" />
+      <displayInfo defaultColumnWidth="20">
+        <stringFormat formatAs="General" />
+      </displayInfo>
+    </propertyDescription>
+
+  </propertyDescriptionList>
+</schema>

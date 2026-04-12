@@ -14,6 +14,9 @@ pub struct XmpFields {
     pub date_taken: Option<String>,
     pub headline: Option<String>,
     pub location: Option<String>,
+    pub person_in_image: Vec<String>,
+    pub photostat_place: Option<String>,
+    pub photostat_cloud_uploads: Vec<String>,
 }
 
 /// Find the XMP sidecar for `image_path`.
@@ -113,6 +116,24 @@ pub fn parse_xmp(xml: &str) -> Result<XmpFields, String> {
 
     // dc:creator (ordered seq -> authors)
     fields.creators = iter_array(&xmp, xmp_ns::DC, "creator");
+
+    // Iptc4xmpExt:PersonInImage (bag)
+    fields.person_in_image = iter_array(
+        &xmp,
+        "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
+        "PersonInImage",
+    );
+
+    // photostat:place (simple string)
+    const NS_PHOTOSTAT: &str = "http://photostat.app/xmp/1.0/";
+    if let Some(val) = xmp.property(NS_PHOTOSTAT, "place") {
+        if !val.value.is_empty() {
+            fields.photostat_place = Some(val.value.clone());
+        }
+    }
+
+    // photostat:cloudUploads (bag)
+    fields.photostat_cloud_uploads = iter_array(&xmp, NS_PHOTOSTAT, "cloudUploads");
 
     Ok(fields)
 }

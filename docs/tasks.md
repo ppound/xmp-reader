@@ -168,9 +168,27 @@ Verified: all 7 extensions registered on install, all restored on uninstall.
 Manual Explorer checklist: `docs/test-checklist.md` (8 scenarios).
 **Status:** completed 2026-04-12.
 
+## M7 tasks
+
+### #18 — Custom .propdesc schema for non-standard XMP fields ✅ DONE
+Created `xmp-sidecar.propdesc` with 5 custom properties under format ID
+`{B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B}`:
+- `XmpSidecar.Headline` (pid 2) - photoshop:Headline
+- `XmpSidecar.Location` (pid 3) - Iptc4xmpCore:Location
+- `XmpSidecar.PersonInImage` (pid 4) - Iptc4xmpExt:PersonInImage
+- `XmpSidecar.Place` (pid 5) - photostat:place
+- `XmpSidecar.CloudUploads` (pid 6) - photostat:cloudUploads
+
+`src/sidecar.rs`: added parsing for PersonInImage, photostat:place, photostat:cloudUploads.
+`src/pkeys.rs`: added 5 custom PKEY constants.
+`src/handler.rs`: maps all new fields to custom PKEYs.
+`src/registry.rs`: calls PSRegisterPropertySchema/PSUnregisterPropertySchema.
+Schema registered successfully. Custom columns available in Explorer "Choose columns".
+**Status:** completed 2026-04-12.
+
 ## Resume here
 
-Next: M7 (optional) or M8 — per `docs/plan.md`.
+Next: M8 — per `docs/plan.md`.
 
 ## Context notes
 

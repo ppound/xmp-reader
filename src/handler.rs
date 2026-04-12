@@ -75,6 +75,40 @@ fn build_properties(fields: &XmpFields) -> Vec<PropEntry> {
             key: PKEY_PHOTO_EVENT,
             value: PROPVARIANT::from(BSTR::from(headline.as_str())),
         });
+        props.push(PropEntry {
+            key: PKEY_XMP_HEADLINE,
+            value: PROPVARIANT::from(BSTR::from(headline.as_str())),
+        });
+    }
+
+    if let Some(ref location) = fields.location {
+        props.push(PropEntry {
+            key: PKEY_XMP_LOCATION,
+            value: PROPVARIANT::from(BSTR::from(location.as_str())),
+        });
+    }
+
+    if !fields.person_in_image.is_empty() {
+        let joined = fields.person_in_image.join("; ");
+        props.push(PropEntry {
+            key: PKEY_XMP_PERSON_IN_IMAGE,
+            value: PROPVARIANT::from(BSTR::from(joined.as_str())),
+        });
+    }
+
+    if let Some(ref place) = fields.photostat_place {
+        props.push(PropEntry {
+            key: PKEY_XMP_PLACE,
+            value: PROPVARIANT::from(BSTR::from(place.as_str())),
+        });
+    }
+
+    if !fields.photostat_cloud_uploads.is_empty() {
+        let joined = fields.photostat_cloud_uploads.join("; ");
+        props.push(PropEntry {
+            key: PKEY_XMP_CLOUD_UPLOADS,
+            value: PROPVARIANT::from(BSTR::from(joined.as_str())),
+        });
     }
 
     props
@@ -241,9 +275,13 @@ mod tests {
             date_taken: Some("2025-06-15".into()),
             headline: Some("Headline".into()),
             location: None,
+            person_in_image: Vec::new(),
+            photostat_place: None,
+            photostat_cloud_uploads: Vec::new(),
         };
         let props = build_properties(&fields);
-        assert_eq!(props.len(), 7);
+        // 7 standard + 1 custom headline = 8
+        assert_eq!(props.len(), 8);
 
         // Verify title is present
         assert!(props.iter().any(|p| p.key.fmtid == PKEY_TITLE.fmtid && p.key.pid == PKEY_TITLE.pid));

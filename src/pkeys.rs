@@ -78,6 +78,50 @@ pub const PKEY_PHOTO_EVENT: PROPERTYKEY = PROPERTYKEY {
     pid: 18248,
 };
 
+// ---------------------------------------------------------------------------
+// Custom properties (registered via .propdesc schema)
+// Format ID: {B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B}
+// ---------------------------------------------------------------------------
+
+const CUSTOM_FMTID: GUID = GUID {
+    data1: 0xB2A7E62A,
+    data2: 0x1D9C,
+    data3: 0x4F5E,
+    data4: [0x8A, 0x3B, 0x7C, 0x6D, 0x5E, 0x4F, 0x3A, 0x2B],
+};
+
+// XmpSidecar.Headline  pid 2
+pub const PKEY_XMP_HEADLINE: PROPERTYKEY = PROPERTYKEY {
+    fmtid: CUSTOM_FMTID,
+    pid: 2,
+};
+
+// XmpSidecar.Location  pid 3
+pub const PKEY_XMP_LOCATION: PROPERTYKEY = PROPERTYKEY {
+    fmtid: CUSTOM_FMTID,
+    pid: 3,
+};
+
+// XmpSidecar.PersonInImage  pid 4
+pub const PKEY_XMP_PERSON_IN_IMAGE: PROPERTYKEY = PROPERTYKEY {
+    fmtid: CUSTOM_FMTID,
+    pid: 4,
+};
+
+// XmpSidecar.Place  pid 5
+pub const PKEY_XMP_PLACE: PROPERTYKEY = PROPERTYKEY {
+    fmtid: CUSTOM_FMTID,
+    pid: 5,
+};
+
+// XmpSidecar.CloudUploads  pid 6
+pub const PKEY_XMP_CLOUD_UPLOADS: PROPERTYKEY = PROPERTYKEY {
+    fmtid: CUSTOM_FMTID,
+    pid: 6,
+};
+
+// ---------------------------------------------------------------------------
+
 // System.Photo.LocationName  (undocumented but commonly used)
 // Actually this is in the Photo PKEY set but not widely documented.
 // Use the GPS location display name instead:

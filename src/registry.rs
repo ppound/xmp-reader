@@ -2,6 +2,9 @@ use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::System::Registry::*;
+use windows::Win32::UI::Shell::PropertiesSystem::{
+    PSRegisterPropertySchema, PSUnregisterPropertySchema,
+};
 
 use crate::CLSID_XMP_HANDLER;
 
@@ -47,6 +50,15 @@ fn get_dll_path() -> Result<String> {
             return Err(Error::from_win32());
         }
         Ok(String::from_utf16_lossy(&buf[..len as usize]))
+    }
+}
+
+fn get_propdesc_path() -> Result<String> {
+    let dll = get_dll_path()?;
+    // Replace the DLL filename with the .propdesc filename.
+    match dll.rfind('\\') {
+        Some(pos) => Ok(format!("{}\\xmp-sidecar.propdesc", &dll[..pos])),
+        None => Err(Error::from(E_FAIL)),
     }
 }
 
@@ -209,6 +221,14 @@ pub fn register() -> Result<()> {
         }
     }
 
+    // 4. Register custom property schema.
+    if let Ok(schema_path) = get_propdesc_path() {
+        let w = wide(&schema_path);
+        unsafe {
+            let _ = PSRegisterPropertySchema(PCWSTR(w.as_ptr()));
+        }
+    }
+
     Ok(())
 }
 
@@ -275,6 +295,14 @@ mod tests {
 
 pub fn unregister() -> Result<()> {
     let clsid = guid_to_string(&CLSID_XMP_HANDLER);
+
+    // 0. Unregister custom property schema.
+    if let Ok(schema_path) = get_propdesc_path() {
+        let w = wide(&schema_path);
+        unsafe {
+            let _ = PSUnregisterPropertySchema(PCWSTR(w.as_ptr()));
+        }
+    }
 
     // 1. Restore old handler for every supported extension.
     for ext in EXTENSIONS {
