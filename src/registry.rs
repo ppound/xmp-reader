@@ -123,6 +123,42 @@ fn get_string(key: HKEY, name: Option<&str>) -> Result<String> {
     }
 }
 
+/// Parse a `{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}` string into a GUID.
+pub fn parse_guid(s: &str) -> Option<GUID> {
+    let s = s.trim_matches(|c| c == '{' || c == '}');
+    let parts: Vec<&str> = s.split('-').collect();
+    if parts.len() != 5 {
+        return None;
+    }
+    let data1 = u32::from_str_radix(parts[0], 16).ok()?;
+    let data2 = u16::from_str_radix(parts[1], 16).ok()?;
+    let data3 = u16::from_str_radix(parts[2], 16).ok()?;
+    let hi = u16::from_str_radix(parts[3], 16).ok()?;
+    let lo = u64::from_str_radix(parts[4], 16).ok()?;
+    let data4 = [
+        (hi >> 8) as u8,
+        hi as u8,
+        (lo >> 40) as u8,
+        (lo >> 32) as u8,
+        (lo >> 24) as u8,
+        (lo >> 16) as u8,
+        (lo >> 8) as u8,
+        lo as u8,
+    ];
+    Some(GUID { data1, data2, data3, data4 })
+}
+
+/// Read the old (system) property handler CLSID for .jpg that we saved during registration.
+pub fn get_old_handler_clsid() -> Option<GUID> {
+    let hk = create_key(HKEY_LOCAL_MACHINE, JPG_HANDLER_PATH, KEY_READ).ok()?;
+    let val = get_string(hk, Some("OldHandler")).ok()?;
+    unsafe { let _ = RegCloseKey(hk); }
+    if val.is_empty() {
+        return None;
+    }
+    parse_guid(&val)
+}
+
 // ---------------------------------------------------------------------------
 // Public API called from DllRegisterServer / DllUnregisterServer
 // ---------------------------------------------------------------------------

@@ -7,15 +7,16 @@ use windows::Win32::System::Com::*;
 use windows::Win32::UI::Shell::PropertiesSystem::*;
 use windows_core::PROPVARIANT;
 
+use crate::embedded;
 use crate::pkeys::*;
 use crate::sidecar::{self, XmpFields};
 
 const STG_E_ACCESSDENIED: HRESULT = HRESULT(0x80030005_u32 as i32);
 
 /// A property entry: the PKEY and the PROPVARIANT value to return for it.
-struct PropEntry {
-    key: PROPERTYKEY,
-    value: PROPVARIANT,
+pub struct PropEntry {
+    pub key: PROPERTYKEY,
+    pub value: PROPVARIANT,
 }
 
 /// Build the list of properties to expose from parsed XMP fields.
@@ -107,11 +108,27 @@ impl IInitializeWithFile_Impl for PropertyHandler_Impl {
 
         let mut state = self.state.lock().unwrap();
 
+        // 1. Load embedded metadata from the old system handler as our base.
+        let mut props = embedded::load_embedded(&path_str);
+
+        // 2. If a sidecar exists, overlay its properties (sidecar wins on conflict).
         if let Some(sidecar_path) = sidecar::find_sidecar(path) {
             if let Ok(fields) = sidecar::parse_sidecar(&sidecar_path) {
-                state.props = build_properties(&fields);
+                let sidecar_props = build_properties(&fields);
+                for sp in sidecar_props {
+                    // Replace any existing entry with the same PKEY.
+                    if let Some(existing) = props.iter_mut().find(|p| {
+                        p.key.fmtid == sp.key.fmtid && p.key.pid == sp.key.pid
+                    }) {
+                        existing.value = sp.value;
+                    } else {
+                        props.push(sp);
+                    }
+                }
             }
         }
+
+        state.props = props;
 
         Ok(())
     }

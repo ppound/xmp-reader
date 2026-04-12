@@ -132,10 +132,21 @@ Verified in Explorer Details pane on Desktop JPEG+sidecar pair: all fields visib
 except Photo.Event (not displayed by default in Details pane - acceptable).
 **Status:** completed 2026-04-12.
 
+## M4 tasks
+
+### #15 — Embedded metadata fallback + merge ✅ DONE
+`src/embedded.rs`: delegates to old system property handler via `CoCreateInstance`,
+reads all properties via `IPropertyStore`. `src/handler.rs` updated: `Initialize`
+loads embedded properties first as base, then overlays sidecar properties on top
+(sidecar wins on PKEY conflict, embedded-only properties preserved).
+`src/registry.rs`: added `get_old_handler_clsid()` and `parse_guid()`.
+Verified: sidecar-less JPEG shows embedded EXIF/XMP, JPEG with sidecar shows
+merged result (sidecar overrides + embedded preserved).
+**Status:** completed 2026-04-12.
+
 ## Resume here
 
-Next: M4 — Embedded metadata fallback + merge. Installing our handler should not
-regress Details pane on sidecar-less JPEGs (read embedded EXIF/XMP via WIC).
+Next: M5 — per `docs/plan.md`.
 
 ## Context notes
 

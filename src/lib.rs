@@ -1,3 +1,4 @@
+mod embedded;
 mod handler;
 mod pkeys;
 mod registry;
