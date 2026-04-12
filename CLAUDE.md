@@ -12,8 +12,6 @@ When doing git operations (commit, push, PR, release), always confirm the target
 
 ## Build & Deploy
 
-Releases and installers are created on GitHub via the releases workflow, not built locally. Do not look for local installer build scripts.
-
 ## Development Workflow
 
 After implementing a feature, always do a full build and test before committing. 
