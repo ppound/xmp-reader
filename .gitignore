@@ -1,6 +1,6 @@
 # Rust build output — kept VM-local via CARGO_TARGET_DIR
 /target/
-
+/test-images/                   
 # Windows sandbox ephemeral files
 sandbox/test-fixtures/*.jpg
 sandbox/test-fixtures/*.xmp

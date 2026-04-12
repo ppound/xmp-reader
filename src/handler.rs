@@ -109,7 +109,12 @@ impl IInitializeWithFile_Impl for PropertyHandler_Impl {
         let mut state = self.state.lock().unwrap();
 
         // 1. Load embedded metadata from the old system handler as our base.
-        let mut props = embedded::load_embedded(&path_str);
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| format!(".{}", e.to_ascii_lowercase()))
+            .unwrap_or_default();
+        let mut props = embedded::load_embedded(&path_str, &ext);
 
         // 2. If a sidecar exists, overlay its properties (sidecar wins on conflict).
         if let Some(sidecar_path) = sidecar::find_sidecar(path) {

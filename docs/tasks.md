@@ -144,9 +144,22 @@ Verified: sidecar-less JPEG shows embedded EXIF/XMP, JPEG with sidecar shows
 merged result (sidecar overrides + embedded preserved).
 **Status:** completed 2026-04-12.
 
+## M5 tasks
+
+### #16 — Multi-format registration ✅ DONE
+`src/registry.rs`: replaced single `JPG_HANDLER_PATH` with `EXTENSIONS` array
+(`.jpg`, `.cr2`, `.nef`, `.arw`, `.dng`, `.tif`, `.tiff`). `register()` and
+`unregister()` loop over all extensions, saving/restoring per-extension old handler.
+`src/embedded.rs` and `src/handler.rs`: `load_embedded` now takes the file extension
+so it delegates to the correct old handler per format.
+Bug fix: `reset-handler.ps1` `Invoke-Regsvr32` parameter renamed from `$args`
+(reserved PS automatic variable) to `$RegArgs` — `/u` flag was silently dropped.
+Verified: all 7 extensions registered on install, all restored on uninstall.
+**Status:** completed 2026-04-12.
+
 ## Resume here
 
-Next: M5 — per `docs/plan.md`.
+Next: M6 — per `docs/plan.md`.
 
 ## Context notes
 

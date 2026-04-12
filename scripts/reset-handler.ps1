@@ -91,7 +91,7 @@ function Reset-Explorer {
     Start-Process explorer.exe
 }
 
-function Invoke-Regsvr32 ([string]$args) {
+function Invoke-Regsvr32 ([string]$RegArgs) {
     $dll = $null
     $resolved = Resolve-Path $DllPath -ErrorAction SilentlyContinue
     if ($resolved) { $dll = $resolved.ProviderPath }
@@ -99,8 +99,8 @@ function Invoke-Regsvr32 ([string]$args) {
         Write-Error "DLL not found: $DllPath"
         exit 1
     }
-    Write-Host "regsvr32 $args `"$dll`" ..."
-    $proc = Start-Process regsvr32.exe -ArgumentList "$args `"$dll`"" -Wait -PassThru
+    Write-Host "regsvr32 $RegArgs `"$dll`" ..."
+    $proc = Start-Process regsvr32.exe -ArgumentList "$RegArgs `"$dll`"" -Wait -PassThru
     if ($proc.ExitCode -ne 0) {
         Write-Error "regsvr32 failed (exit code $($proc.ExitCode))."
         exit $proc.ExitCode

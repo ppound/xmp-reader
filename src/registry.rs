@@ -6,8 +6,10 @@ use windows::Win32::System::Registry::*;
 use crate::CLSID_XMP_HANDLER;
 
 const HANDLER_DESCRIPTION: &str = "XMP Sidecar Property Handler";
-const JPG_HANDLER_PATH: &str =
-    r"SOFTWARE\Microsoft\Windows\CurrentVersion\PropertySystem\PropertyHandlers\.jpg";
+const HANDLER_BASE: &str =
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\PropertySystem\PropertyHandlers\";
+
+const EXTENSIONS: &[&str] = &[".jpg", ".cr2", ".nef", ".arw", ".dng", ".raf", ".tif", ".tiff"];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -148,9 +150,10 @@ pub fn parse_guid(s: &str) -> Option<GUID> {
     Some(GUID { data1, data2, data3, data4 })
 }
 
-/// Read the old (system) property handler CLSID for .jpg that we saved during registration.
-pub fn get_old_handler_clsid() -> Option<GUID> {
-    let hk = create_key(HKEY_LOCAL_MACHINE, JPG_HANDLER_PATH, KEY_READ).ok()?;
+/// Read the old (system) property handler CLSID saved during registration for the given extension.
+pub fn get_old_handler_clsid(ext: &str) -> Option<GUID> {
+    let path = format!("{}{}", HANDLER_BASE, ext);
+    let hk = create_key(HKEY_LOCAL_MACHINE, &path, KEY_READ).ok()?;
     let val = get_string(hk, Some("OldHandler")).ok()?;
     unsafe { let _ = RegCloseKey(hk); }
     if val.is_empty() {
@@ -189,18 +192,21 @@ pub fn register() -> Result<()> {
         let _ = RegCloseKey(clsid_key);
     }
 
-    // 3. Register as .jpg property handler, saving the old handler CLSID.
-    let hk = create_key(HKEY_LOCAL_MACHINE, JPG_HANDLER_PATH, KEY_READ | KEY_WRITE)?;
+    // 3. Register as property handler for every supported extension.
+    for ext in EXTENSIONS {
+        let ext_path = format!("{}{}", HANDLER_BASE, ext);
+        let hk = create_key(HKEY_LOCAL_MACHINE, &ext_path, KEY_READ | KEY_WRITE)?;
 
-    if let Ok(existing) = get_string(hk, None) {
-        if !existing.is_empty() && existing != clsid {
-            let _ = set_string(hk, Some("OldHandler"), &existing);
+        if let Ok(existing) = get_string(hk, None) {
+            if !existing.is_empty() && existing != clsid {
+                let _ = set_string(hk, Some("OldHandler"), &existing);
+            }
         }
-    }
-    set_string(hk, None, &clsid)?;
+        set_string(hk, None, &clsid)?;
 
-    unsafe {
-        let _ = RegCloseKey(hk);
+        unsafe {
+            let _ = RegCloseKey(hk);
+        }
     }
 
     Ok(())
@@ -209,21 +215,22 @@ pub fn register() -> Result<()> {
 pub fn unregister() -> Result<()> {
     let clsid = guid_to_string(&CLSID_XMP_HANDLER);
 
-    // 1. Restore old .jpg handler.
-    if let Ok(hk) =
-        create_key(HKEY_LOCAL_MACHINE, JPG_HANDLER_PATH, KEY_READ | KEY_WRITE)
-    {
-        if let Ok(old) = get_string(hk, Some("OldHandler")) {
-            if !old.is_empty() {
-                let _ = set_string(hk, None, &old);
-                let w = wide("OldHandler");
-                unsafe {
-                    let _ = RegDeleteValueW(hk, PCWSTR(w.as_ptr()));
+    // 1. Restore old handler for every supported extension.
+    for ext in EXTENSIONS {
+        let ext_path = format!("{}{}", HANDLER_BASE, ext);
+        if let Ok(hk) = create_key(HKEY_LOCAL_MACHINE, &ext_path, KEY_READ | KEY_WRITE) {
+            if let Ok(old) = get_string(hk, Some("OldHandler")) {
+                if !old.is_empty() {
+                    let _ = set_string(hk, None, &old);
+                    let w = wide("OldHandler");
+                    unsafe {
+                        let _ = RegDeleteValueW(hk, PCWSTR(w.as_ptr()));
+                    }
                 }
             }
-        }
-        unsafe {
-            let _ = RegCloseKey(hk);
+            unsafe {
+                let _ = RegCloseKey(hk);
+            }
         }
     }
 

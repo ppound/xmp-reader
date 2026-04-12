@@ -12,16 +12,17 @@ use crate::handler::PropEntry;
 use crate::registry;
 
 /// Load all properties from the old system handler for the given file.
+/// `ext` should include the leading dot, e.g. ".jpg".
 /// Returns an empty vec (not an error) if the old handler is unavailable.
-pub fn load_embedded(file_path: &str) -> Vec<PropEntry> {
-    match try_load_embedded(file_path) {
+pub fn load_embedded(file_path: &str, ext: &str) -> Vec<PropEntry> {
+    match try_load_embedded(file_path, ext) {
         Ok(props) => props,
         Err(_) => Vec::new(),
     }
 }
 
-fn try_load_embedded(file_path: &str) -> Result<Vec<PropEntry>> {
-    let old_clsid = registry::get_old_handler_clsid()
+fn try_load_embedded(file_path: &str, ext: &str) -> Result<Vec<PropEntry>> {
+    let old_clsid = registry::get_old_handler_clsid(ext)
         .ok_or_else(|| Error::from(E_FAIL))?;
 
     // Create an instance of the old handler.
