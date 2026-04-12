@@ -98,3 +98,36 @@ pub fn xmp_rating_to_windows(stars: i32) -> u32 {
         _ => 0,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rating_conversion_all_stars() {
+        assert_eq!(xmp_rating_to_windows(1), 1);
+        assert_eq!(xmp_rating_to_windows(2), 25);
+        assert_eq!(xmp_rating_to_windows(3), 50);
+        assert_eq!(xmp_rating_to_windows(4), 75);
+        assert_eq!(xmp_rating_to_windows(5), 99);
+    }
+
+    #[test]
+    fn rating_conversion_out_of_range() {
+        assert_eq!(xmp_rating_to_windows(0), 0);
+        assert_eq!(xmp_rating_to_windows(-1), 0);
+        assert_eq!(xmp_rating_to_windows(6), 0);
+    }
+
+    #[test]
+    fn pkey_title_and_comment_share_fmtid() {
+        assert_eq!(PKEY_TITLE.fmtid, PKEY_COMMENT.fmtid);
+        assert_ne!(PKEY_TITLE.pid, PKEY_COMMENT.pid);
+    }
+
+    #[test]
+    fn pkey_date_taken_and_event_share_fmtid() {
+        assert_eq!(PKEY_DATE_TAKEN.fmtid, PKEY_PHOTO_EVENT.fmtid);
+        assert_ne!(PKEY_DATE_TAKEN.pid, PKEY_PHOTO_EVENT.pid);
+    }
+}

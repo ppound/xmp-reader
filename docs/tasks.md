@@ -157,9 +157,20 @@ Bug fix: `reset-handler.ps1` `Invoke-Regsvr32` parameter renamed from `$args`
 Verified: all 7 extensions registered on install, all restored on uninstall.
 **Status:** completed 2026-04-12.
 
+## M6 tasks
+
+### #17 — Test suite ✅ DONE
+20 automated unit tests across 4 modules:
+- `sidecar.rs` (6): XMP parsing (full + minimal) and sidecar discovery
+- `registry.rs` (7): GUID parse/format/roundtrip, invalid input, extension list
+- `pkeys.rs` (4): rating conversion (valid + out-of-range), PKEY fmtid grouping
+- `handler.rs` (3): build_properties (full + empty), merge logic (override + append)
+Manual Explorer checklist: `docs/test-checklist.md` (8 scenarios).
+**Status:** completed 2026-04-12.
+
 ## Resume here
 
-Next: M6 — per `docs/plan.md`.
+Next: M7 (optional) or M8 — per `docs/plan.md`.
 
 ## Context notes
 

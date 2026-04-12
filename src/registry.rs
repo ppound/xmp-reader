@@ -212,6 +212,67 @@ pub fn register() -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_guid_valid() {
+        let g = parse_guid("{D4B5A6C7-8E9F-4A1B-BC2D-3E4F5A6B7C8D}").unwrap();
+        assert_eq!(g.data1, 0xD4B5A6C7);
+        assert_eq!(g.data2, 0x8E9F);
+        assert_eq!(g.data3, 0x4A1B);
+        assert_eq!(g.data4, [0xBC, 0x2D, 0x3E, 0x4F, 0x5A, 0x6B, 0x7C, 0x8D]);
+    }
+
+    #[test]
+    fn parse_guid_without_braces() {
+        let g = parse_guid("D4B5A6C7-8E9F-4A1B-BC2D-3E4F5A6B7C8D").unwrap();
+        assert_eq!(g.data1, 0xD4B5A6C7);
+    }
+
+    #[test]
+    fn parse_guid_invalid_returns_none() {
+        assert!(parse_guid("not-a-guid").is_none());
+        assert!(parse_guid("").is_none());
+        assert!(parse_guid("{ZZZZZZZZ-8E9F-4A1B-BC2D-3E4F5A6B7C8D}").is_none());
+    }
+
+    #[test]
+    fn guid_roundtrip() {
+        let original = "{D4B5A6C7-8E9F-4A1B-BC2D-3E4F5A6B7C8D}";
+        let g = parse_guid(original).unwrap();
+        let formatted = guid_to_string(&g);
+        assert_eq!(formatted, original);
+    }
+
+    #[test]
+    fn guid_to_string_format() {
+        let g = GUID {
+            data1: 0xA38B883C,
+            data2: 0x1682,
+            data3: 0x497E,
+            data4: [0x97, 0xB0, 0x0A, 0x3A, 0x9E, 0x80, 0x16, 0x82],
+        };
+        assert_eq!(
+            guid_to_string(&g),
+            "{A38B883C-1682-497E-97B0-0A3A9E801682}"
+        );
+    }
+
+    #[test]
+    fn extensions_list_contains_expected() {
+        assert!(EXTENSIONS.contains(&".jpg"));
+        assert!(EXTENSIONS.contains(&".cr2"));
+        assert!(EXTENSIONS.contains(&".nef"));
+        assert!(EXTENSIONS.contains(&".arw"));
+        assert!(EXTENSIONS.contains(&".dng"));
+        assert!(EXTENSIONS.contains(&".raf"));
+        assert!(EXTENSIONS.contains(&".tif"));
+        assert!(EXTENSIONS.contains(&".tiff"));
+    }
+}
+
 pub fn unregister() -> Result<()> {
     let clsid = guid_to_string(&CLSID_XMP_HANDLER);
 

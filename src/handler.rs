@@ -224,3 +224,114 @@ impl IClassFactory_Impl for HandlerFactory_Impl {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sidecar::XmpFields;
+
+    #[test]
+    fn build_properties_full() {
+        let fields = XmpFields {
+            rating: Some(4),
+            title: Some("Test Title".into()),
+            description: Some("Test Desc".into()),
+            keywords: vec!["a".into(), "b".into()],
+            creators: vec!["Alice".into()],
+            date_taken: Some("2025-06-15".into()),
+            headline: Some("Headline".into()),
+            location: None,
+        };
+        let props = build_properties(&fields);
+        assert_eq!(props.len(), 7);
+
+        // Verify title is present
+        assert!(props.iter().any(|p| p.key.fmtid == PKEY_TITLE.fmtid && p.key.pid == PKEY_TITLE.pid));
+        // Verify rating is present
+        assert!(props.iter().any(|p| p.key.fmtid == PKEY_RATING.fmtid && p.key.pid == PKEY_RATING.pid));
+    }
+
+    #[test]
+    fn build_properties_empty() {
+        let fields = XmpFields::default();
+        let props = build_properties(&fields);
+        assert!(props.is_empty());
+    }
+
+    #[test]
+    fn merge_sidecar_overrides_embedded() {
+        // Simulate embedded props with a title
+        let mut props = vec![
+            PropEntry {
+                key: PKEY_TITLE,
+                value: PROPVARIANT::from(BSTR::from("Embedded Title")),
+            },
+            PropEntry {
+                key: PKEY_RATING,
+                value: PROPVARIANT::from(75u32),
+            },
+        ];
+
+        // Sidecar has a different title but no rating
+        let sidecar_fields = XmpFields {
+            title: Some("Sidecar Title".into()),
+            ..Default::default()
+        };
+        let sidecar_props = build_properties(&sidecar_fields);
+
+        // Merge: sidecar overrides matching keys, embedded-only keys survive
+        for sp in sidecar_props {
+            if let Some(existing) = props.iter_mut().find(|p| {
+                p.key.fmtid == sp.key.fmtid && p.key.pid == sp.key.pid
+            }) {
+                existing.value = sp.value;
+            } else {
+                props.push(sp);
+            }
+        }
+
+        // Should still have 2 entries (title replaced, rating preserved)
+        assert_eq!(props.len(), 2);
+
+        // Title should be from sidecar
+        let title_entry = props.iter().find(|p| p.key.pid == PKEY_TITLE.pid).unwrap();
+        let title_str = format!("{:?}", title_entry.value);
+        assert!(title_str.contains("Sidecar Title"), "title should be from sidecar, got: {}", title_str);
+
+        // Rating should be preserved from embedded
+        assert!(props.iter().any(|p| p.key.fmtid == PKEY_RATING.fmtid && p.key.pid == PKEY_RATING.pid));
+    }
+
+    #[test]
+    fn merge_sidecar_appends_new_keys() {
+        // Embedded has only rating
+        let mut props = vec![
+            PropEntry {
+                key: PKEY_RATING,
+                value: PROPVARIANT::from(50u32),
+            },
+        ];
+
+        // Sidecar adds title (not in embedded)
+        let sidecar_fields = XmpFields {
+            title: Some("New Title".into()),
+            ..Default::default()
+        };
+        let sidecar_props = build_properties(&sidecar_fields);
+
+        for sp in sidecar_props {
+            if let Some(existing) = props.iter_mut().find(|p| {
+                p.key.fmtid == sp.key.fmtid && p.key.pid == sp.key.pid
+            }) {
+                existing.value = sp.value;
+            } else {
+                props.push(sp);
+            }
+        }
+
+        // Should have 2: original rating + new title
+        assert_eq!(props.len(), 2);
+        assert!(props.iter().any(|p| p.key.pid == PKEY_TITLE.pid));
+        assert!(props.iter().any(|p| p.key.pid == PKEY_RATING.pid));
+    }
+}
