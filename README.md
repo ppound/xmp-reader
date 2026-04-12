@@ -56,10 +56,11 @@ anything by installing us.
 2. Extract the zip to a temporary folder
 3. Open an **elevated PowerShell** (Run as Administrator)
 4. Run the installer:
+   *(Note: Since the scripts are not currently signed, we use `-ExecutionPolicy Bypass` to allow them to run)*
 
 ```powershell
 cd "C:\path\to\extracted\folder"
-.\install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 This copies the DLL and property schema to `%ProgramFiles%\xmp-reader\`,
@@ -68,13 +69,13 @@ registers the handler for all supported formats, and restarts Explorer.
 ### Uninstall
 
 ```powershell
-.\uninstall.ps1
+powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
 Or run from the install directory:
 
 ```powershell
-& "$env:ProgramFiles\xmp-reader\uninstall.ps1"
+powershell -ExecutionPolicy Bypass -File "$env:ProgramFiles\xmp-reader\uninstall.ps1"
 ```
 
 This restores the original system handlers and removes the install directory.
