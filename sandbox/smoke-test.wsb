@@ -10,21 +10,21 @@
       - Build the project first: cargo build --release (inside the VM)
       - Add JPEG+XMP sidecar pairs to sandbox\test-fixtures\ (done in M2)
 
-    If your project root is not C:\Users\paulp\claude-code\xmp-reader,
+    If your project root is not C:\path\to\xmp-reader,
     update the two HostFolder paths below.
   -->
   <MappedFolders>
 
     <!-- Rust release build output — provides xmp_reader.dll -->
     <MappedFolder>
-      <HostFolder>C:\Users\paulp\claude-code\xmp-reader\target\x86_64-pc-windows-msvc\release</HostFolder>
+      <HostFolder>C:\path\to\xmp-reader\target\x86_64-pc-windows-msvc\release</HostFolder>
       <SandboxFolder>C:\xmp-reader\bin</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
 
     <!-- Sandbox scripts and test fixtures (this folder) -->
     <MappedFolder>
-      <HostFolder>C:\Users\paulp\claude-code\xmp-reader\sandbox</HostFolder>
+      <HostFolder>C:\path\to\xmp-reader\sandbox</HostFolder>
       <SandboxFolder>C:\xmp-reader\sandbox</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>

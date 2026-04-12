@@ -197,8 +197,8 @@ lock conflicts with incremental compilation.
 ```powershell
 # 1. Create the SMB share
 New-SmbShare -Name "xmp-reader" `
-    -Path "C:\Users\paulp\claude-code\xmp-reader" `
-    -FullAccess "lenovo-pdp\paulp"
+    -Path "C:\path\to\xmp-reader" `
+    -FullAccess "[COMPUTER-NAME]\[USERNAME]"
 
 # 2. Firewall rule scoped to the NAT subnet
 New-NetFirewallRule -DisplayName "SMB from Hyper-V NAT" `
@@ -247,7 +247,7 @@ Before mounting, ensure network sharing is turned on in the VM:
 # Mount \\host\xmp-reader as drive Z: persistently
 New-PSDrive -Name "Z" -PSProvider FileSystem `
     -Root "\\192.168.100.1\xmp-reader" `
-    -Credential lenovo-pdp\paulp -Persist
+    -Credential [COMPUTER-NAME]\[USERNAME] -Persist
 # Prompt appears for the host account password.
 
 # Keep target/ off the share — VM-local disk only

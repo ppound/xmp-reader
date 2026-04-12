@@ -47,8 +47,8 @@ the NATSwitch. `target/` directory is VM-local (not on the share) via `CARGO_TAR
 to avoid slow builds and file lock issues.
 
 **Host side — DONE:**
-- SMB share `xmp-reader` → `C:\Users\paulp\claude-code\xmp-reader`
-  - Created with: `New-SmbShare -Name "xmp-reader" -Path "C:\Users\paulp\claude-code\xmp-reader" -FullAccess "lenovo-pdp\paulp"`
+- SMB share `xmp-reader` → `C:\path\to\xmp-reader`
+  - Created with: `New-SmbShare -Name "xmp-reader" -Path "C:\path\to\xmp-reader" -FullAccess "[COMPUTER-NAME]\[USERNAME]"`
 - NATSwitch profile changed from Public to Private
 - Firewall rule "SMB from Hyper-V NAT" (Private profile, TCP 445, RemoteAddress 192.168.100.0/24)
 - **Critical fix:** `Set-NetFirewallProfile -Profile Private -AllowInboundRules True` was required —
@@ -61,7 +61,7 @@ to avoid slow builds and file lock issues.
    ```powershell
    New-PSDrive -Name "Z" -PSProvider FileSystem `
        -Root "\\192.168.100.1\xmp-reader" `
-       -Credential lenovo-pdp\paulp -Persist
+       -Credential [COMPUTER-NAME]\[USERNAME] -Persist
    ```
    (will prompt for host account password interactively)
 2. Verify: `cd Z:\; ls` should show CLAUDE.md, docs, sandbox, scripts.
@@ -213,8 +213,8 @@ All milestones M0-M8 complete.
 
 ## Context notes
 
-- Host: `lenovo-pdp`, Windows 11 Pro, Build 10.0.26200, Lenovo, Wi-Fi.
-- Host user: `paulp`.
+- Host: `[COMPUTER-NAME]`, Windows 11 Pro, Build 10.0.26200, Lenovo, Wi-Fi.
+- Host user: `[USERNAME]`.
 - VM: "Windows 11 dev environment" on Hyper-V, default user `User`, 192.168.100.10.
 - Networking: NATSwitch (manual `New-NetNat`), Default Switch does NOT work on Wi-Fi.
 - `xmp_toolkit` API gotchas captured in `memory/reference_xmp_toolkit_api.md`.
