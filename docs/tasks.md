@@ -2,8 +2,8 @@
 
 > Updated 2026-04-12.
 >
-> **Current milestone: M2 — Sidecar discovery + XMP parse.**
-> **Next action: implement `parse_sidecar(path)` that reads `.xmp` sidecar files and returns a field map.**
+> **Current milestone: M3 — XMP-to-PKEY mapping.**
+> **Next action: wire sidecar parsing into the property handler so XMP fields appear in Explorer.**
 
 ## M0.5 tasks
 
@@ -111,10 +111,20 @@ DllRegisterServer writes CLSID + InprocServer32 + PropertyHandler\.jpg entries;
 DllUnregisterServer restores old handler. Verified in Explorer Details pane on real JPEG.
 **Status:** completed 2026-04-12.
 
+## M2 tasks
+
+### #13 — Sidecar discovery + XMP parse ✅ DONE
+`src/sidecar.rs`: `find_sidecar(path)` checks `<stem>.xmp` then `<name>.xmp`,
+`parse_sidecar(path)` / `parse_xmp(xml)` extracts rating, title, description,
+keywords, creators, date_taken, headline, location into `XmpFields` struct.
+6 unit tests (parse_full, parse_minimal, find_stem, find_ext, find_prefers_stem, find_none).
+All pass. `xmp_toolkit` v1.12.1 with `crt_static` feature.
+**Status:** completed 2026-04-12.
+
 ## Resume here
 
-Next: M2 — Sidecar discovery + XMP parse. Implement `parse_sidecar(path)` that reads
-`.xmp` sidecar files and returns a stable field map (unit tests green on host).
+Next: M3 — XMP-to-PKEY mapping. Wire `sidecar.rs` into `handler.rs` so parsed XMP
+fields reach Explorer Details pane on real JPEG+sidecar pairs.
 
 ## Context notes
 

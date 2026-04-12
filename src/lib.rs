@@ -1,5 +1,6 @@
 mod handler;
 mod registry;
+mod sidecar;
 
 use core::ffi::c_void;
 use windows::core::*;
