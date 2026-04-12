@@ -44,9 +44,9 @@ fn get_dll_path() -> Result<String> {
             PCWSTR(get_dll_path as *const () as usize as *const u16),
             &mut hmod,
         )?;
-        let mut buf = [0u16; 260];
-        let len = GetModuleFileNameW(hmod, &mut buf);
-        if len == 0 {
+        let mut buf = vec![0u16; 32768];
+        let len = GetModuleFileNameW(hmod, &mut buf[..]);
+        if len == 0 || len as usize >= buf.len() {
             return Err(Error::from_win32());
         }
         Ok(String::from_utf16_lossy(&buf[..len as usize]))
@@ -314,6 +314,10 @@ pub fn unregister() -> Result<()> {
                     let w = wide("OldHandler");
                     unsafe {
                         let _ = RegDeleteValueW(hk, PCWSTR(w.as_ptr()));
+                    }
+                } else {
+                    unsafe {
+                        let _ = RegDeleteValueW(hk, PCWSTR(core::ptr::null()));
                     }
                 }
             }

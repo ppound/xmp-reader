@@ -136,7 +136,12 @@ impl PropertyHandler {
 }
 
 impl IInitializeWithFile_Impl for PropertyHandler_Impl {
-    fn Initialize(&self, pszfilepath: &PCWSTR, _grfmode: u32) -> Result<()> {
+    fn Initialize(&self, pszfilepath: &PCWSTR, grfmode: u32) -> Result<()> {
+        // Enforce read-only access (STGM_READ is 0; STGM_WRITE=1, STGM_READWRITE=2 are masked by 0x3)
+        if (grfmode & 0x3) != 0 {
+            return Err(Error::from(STG_E_ACCESSDENIED));
+        }
+
         let path_str = unsafe { pszfilepath.to_string()? };
         let path = Path::new(&path_str);
 
