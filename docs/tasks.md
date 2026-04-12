@@ -186,9 +186,30 @@ Created `xmp-sidecar.propdesc` with 5 custom properties under format ID
 Schema registered successfully. Custom columns available in Explorer "Choose columns".
 **Status:** completed 2026-04-12.
 
+## M8 tasks
+
+### #19 — Installer + uninstaller scripts ✅ DONE
+`scripts/install.ps1`: copies DLL + .propdesc to `%ProgramFiles%\xmp-reader\`,
+registers via regsvr32, restarts Explorer. Also copies itself and uninstall.ps1
+to install dir for later use.
+`scripts/uninstall.ps1`: unregisters, removes install dir, restarts Explorer.
+Both require Administrator elevation.
+**Status:** completed 2026-04-12.
+
+### #20 — GitHub Actions release workflow ✅ DONE
+`.github/workflows/release.yml`: triggered on `v*` tag push. Builds on
+`windows-latest`, runs tests, packages DLL + propdesc + scripts + README + LICENSE
+into a zip, creates GitHub Release with auto-generated release notes.
+**Status:** completed 2026-04-12.
+
+### #21 — README update ✅ DONE
+Updated installation section with download + install/uninstall instructions.
+Status bumped to v0.1.0. Roadmap table all marked Done.
+**Status:** completed 2026-04-12.
+
 ## Resume here
 
-Next: M8 — per `docs/plan.md`.
+All milestones M0-M8 complete.
 
 ## Context notes
 

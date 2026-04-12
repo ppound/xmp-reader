@@ -7,7 +7,7 @@ without needing Bridge, Lightroom, or any other DAM.
 Implemented as a native Rust COM DLL registered as a Windows **property handler**.
 Read-only. No write-back.
 
-> **Status:** M7 complete. M8 (installer + release) is next.
+> **Status:** v0.1.0 released.
 
 ---
 
@@ -51,9 +51,37 @@ anything by installing us.
 
 ## Installation
 
-> Installer not yet available — packaging is planned for M8.
+1. Download the latest release zip from
+   [Releases](https://github.com/ppound/xmp-reader/releases)
+2. Extract the zip to a temporary folder
+3. Open an **elevated PowerShell** (Run as Administrator)
+4. Run the installer:
 
-For development installation see [docs/dev-environment.md](docs/dev-environment.md).
+```powershell
+cd "C:\path\to\extracted\folder"
+.\install.ps1
+```
+
+This copies the DLL and property schema to `%ProgramFiles%\xmp-reader\`,
+registers the handler for all supported formats, and restarts Explorer.
+
+### Uninstall
+
+```powershell
+.\uninstall.ps1
+```
+
+Or run from the install directory:
+
+```powershell
+& "$env:ProgramFiles\xmp-reader\uninstall.ps1"
+```
+
+This restores the original system handlers and removes the install directory.
+
+### Development installation
+
+For building from source see [docs/dev-environment.md](docs/dev-environment.md).
 
 ---
 
@@ -139,7 +167,7 @@ cargo build --release
 | M5 — Multi-format + clean uninstall | Done |
 | M6 — Test suite | Done |
 | M7 — Custom `.propdesc` schema | Done |
-| M8 — Packaging + release | Next |
+| M8 — Packaging + release | Done |
 
 ---
 
