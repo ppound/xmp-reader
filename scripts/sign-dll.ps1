@@ -17,10 +17,14 @@
 #     used a different CN when creating the cert.
 
 param(
-    [string]$DllPath = "$PSScriptRoot\..\target\x86_64-pc-windows-msvc\release\xmp_reader.dll",
+    [string]$DllPath = "",
 
     [switch]$Verify
 )
+
+if (-not $DllPath) {
+    $DllPath = "$PSScriptRoot\..\target\x86_64-pc-windows-msvc\release\xmp_reader.dll"
+}
 
 $ErrorActionPreference = 'Stop'
 

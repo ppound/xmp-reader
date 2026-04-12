@@ -54,8 +54,12 @@ param(
 
     [Parameter(ParameterSetName = 'Install')]
     [Parameter(ParameterSetName = 'Uninstall')]
-    [string]$DllPath = "$PSScriptRoot\..\target\x86_64-pc-windows-msvc\release\xmp_reader.dll"
+    [string]$DllPath = ""
 )
+
+if (-not $DllPath) {
+    $DllPath = "$PSScriptRoot\..\target\x86_64-pc-windows-msvc\release\xmp_reader.dll"
+}
 
 $ErrorActionPreference = 'Stop'
 

@@ -15,8 +15,12 @@
 
 [CmdletBinding()]
 param(
-    [string]$SourceDir = $PSScriptRoot
+    [string]$SourceDir = ""
 )
+
+if (-not $SourceDir) {
+    $SourceDir = $PSScriptRoot
+}
 
 $ErrorActionPreference = 'Stop'
 
