@@ -4,8 +4,8 @@ A Windows shell extension that reads XMP sidecar files and surfaces their metada
 in Explorer's Details pane, column views, tooltips, and the Windows Search index —
 without needing Bridge, Lightroom, or any other DAM.
 
-Implemented as a native Rust COM DLL registered as a Windows **property handler**.
-Read-only. No write-back.
+Implemented as a native Rust COM DLL registered as a Windows **property handler**
+and **context menu extension**. Read-only. No write-back.
 
 > **Status:** v0.1.0 released.
 
@@ -86,6 +86,21 @@ For building from source see [docs/dev-environment.md](docs/dev-environment.md).
 
 ---
 
+## Copy / Move with sidecar
+
+Right-clicking any supported image file in Explorer shows two additional items
+under **Show more options** (Windows 11's extended context menu):
+
+- **Copy with sidecar** — copies the selected files to a chosen folder, including
+  any matching XMP sidecars
+- **Move with sidecar** — moves the selected files and their sidecars
+
+Multi-select is supported: all selected images are copied/moved, with sidecars
+included for those that have them. If no selected file has a sidecar, the menu
+items are hidden. Operations are undo-able via Ctrl+Z.
+
+---
+
 ## Supported formats
 
 | Extension | Status |
@@ -149,7 +164,8 @@ cargo build --release
 | `src/sidecar.rs` | Sidecar discovery (`find_sidecar`) and XMP parsing (`parse_xmp`) |
 | `src/embedded.rs` | Reads embedded metadata by delegating to the previous system handler |
 | `src/pkeys.rs` | `PROPERTYKEY` constants and rating scale conversion |
-| `src/registry.rs` | `DllRegisterServer` / `DllUnregisterServer`: saves and restores per-extension old handlers, registers `.propdesc` schema |
+| `src/context_menu.rs` | Context menu extension: `IShellExtInit`, `IContextMenu` — "Copy/Move with sidecar" |
+| `src/registry.rs` | `DllRegisterServer` / `DllUnregisterServer`: saves and restores per-extension old handlers, registers `.propdesc` schema and context menu |
 
 **Tests:** 20 unit tests across all modules. Manual Explorer checklist in
 [docs/test-checklist.md](docs/test-checklist.md).
@@ -169,6 +185,7 @@ cargo build --release
 | M6 — Test suite | Done |
 | M7 — Custom `.propdesc` schema | Done |
 | M8 — Packaging + release | Done |
+| M9 — Sidecar copy/move context menu | Done |
 
 ---
 
