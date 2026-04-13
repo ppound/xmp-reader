@@ -145,11 +145,13 @@ fn iter_array(xmp: &XmpMeta, ns: &str, name: &str) -> Vec<String> {
     loop {
         let path = format!("{name}[{i}]");
         match xmp.property(ns, &path) {
-            Some(val) if !val.value.is_empty() => {
-                items.push(val.value.clone());
+            Some(val) => {
+                if !val.value.is_empty() {
+                    items.push(val.value.clone());
+                }
                 i += 1;
             }
-            _ => break,
+            None => break,
         }
     }
     items

@@ -89,6 +89,15 @@ fn create_key(parent: HKEY, subkey: &str, access: REG_SAM_FLAGS) -> Result<HKEY>
     Ok(key)
 }
 
+fn open_key(parent: HKEY, subkey: &str, access: REG_SAM_FLAGS) -> Result<HKEY> {
+    let w = wide(subkey);
+    let mut key = HKEY::default();
+    unsafe {
+        RegOpenKeyExW(parent, PCWSTR(w.as_ptr()), 0, access, &mut key).ok()?;
+    }
+    Ok(key)
+}
+
 fn set_string(key: HKEY, name: Option<&str>, value: &str) -> Result<()> {
     let name_w = name.map(wide);
     let name_pcwstr = match &name_w {
@@ -122,18 +131,18 @@ fn get_string(key: HKEY, name: Option<&str>) -> Result<String> {
         if size == 0 {
             return Ok(String::new());
         }
-        let mut buf = vec![0u8; size as usize];
+        let num_u16 = (size as usize + 1) / 2;
+        let mut buf = vec![0u16; num_u16];
         RegQueryValueExW(
             key,
             name_pcwstr,
             None,
             None,
-            Some(buf.as_mut_ptr()),
+            Some(buf.as_mut_ptr() as *mut u8),
             Some(&mut size as *mut u32),
         )
         .ok()?;
-        let chars =
-            core::slice::from_raw_parts(buf.as_ptr() as *const u16, size as usize / 2);
+        let chars = &buf[..size as usize / 2];
         let len = chars.iter().position(|&c| c == 0).unwrap_or(chars.len());
         Ok(String::from_utf16_lossy(&chars[..len]))
     }
@@ -167,7 +176,7 @@ pub fn parse_guid(s: &str) -> Option<GUID> {
 /// Read the old (system) property handler CLSID saved during registration for the given extension.
 pub fn get_old_handler_clsid(ext: &str) -> Option<GUID> {
     let path = format!("{}{}", HANDLER_BASE, ext);
-    let hk = create_key(HKEY_LOCAL_MACHINE, &path, KEY_READ).ok()?;
+    let hk = open_key(HKEY_LOCAL_MACHINE, &path, KEY_READ).ok()?;
     let val = get_string(hk, Some("OldHandler")).ok()?;
     unsafe { let _ = RegCloseKey(hk); }
     if val.is_empty() {
