@@ -1,3 +1,4 @@
+mod context_menu;
 mod embedded;
 mod handler;
 mod pkeys;
@@ -9,6 +10,7 @@ use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::System::Com::*;
 
+use context_menu::ContextMenuFactory;
 use handler::HandlerFactory;
 
 /// CLSID for the XMP Sidecar Property Handler.
@@ -18,6 +20,15 @@ pub const CLSID_XMP_HANDLER: GUID = GUID {
     data2: 0x8E9F,
     data3: 0x4A1B,
     data4: [0xBC, 0x2D, 0x3E, 0x4F, 0x5A, 0x6B, 0x7C, 0x8D],
+};
+
+/// CLSID for the XMP Sidecar Context Menu extension.
+/// {A1C2D3E4-5F60-4718-B9CA-0D1E2F3A4B5C}
+pub const CLSID_XMP_CONTEXT_MENU: GUID = GUID {
+    data1: 0xA1C2D3E4,
+    data2: 0x5F60,
+    data3: 0x4718,
+    data4: [0xB9, 0xCA, 0x0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C],
 };
 
 #[no_mangle]
@@ -31,7 +42,7 @@ unsafe extern "system" fn DllGetClassObject(
     }
     *ppv = core::ptr::null_mut();
 
-    if rclsid.is_null() || *rclsid != CLSID_XMP_HANDLER {
+    if rclsid.is_null() {
         return CLASS_E_CLASSNOTAVAILABLE;
     }
 
@@ -40,10 +51,19 @@ unsafe extern "system" fn DllGetClassObject(
         return E_NOINTERFACE;
     }
 
-    let factory: IClassFactory = HandlerFactory.into();
-    // Transfer ownership of the COM pointer to the caller (refcount stays 1).
-    *ppv = core::mem::transmute(factory);
-    S_OK
+    if *rclsid == CLSID_XMP_HANDLER {
+        let factory: IClassFactory = HandlerFactory.into();
+        *ppv = core::mem::transmute(factory);
+        return S_OK;
+    }
+
+    if *rclsid == CLSID_XMP_CONTEXT_MENU {
+        let factory: IClassFactory = ContextMenuFactory.into();
+        *ppv = core::mem::transmute(factory);
+        return S_OK;
+    }
+
+    CLASS_E_CLASSNOTAVAILABLE
 }
 
 #[no_mangle]

@@ -207,9 +207,36 @@ Updated installation section with download + install/uninstall instructions.
 Status bumped to v0.1.0. Roadmap table all marked Done.
 **Status:** completed 2026-04-12.
 
+## M9 tasks
+
+### #22 — Context menu shell extension ✅ DONE
+`src/context_menu.rs`: `IShellExtInit` + `IContextMenu` implementation.
+`IShellExtInit::Initialize` receives selected file, calls `find_sidecar()`.
+`QueryContextMenu` adds "Copy with sidecar" / "Move with sidecar" items
+only when a sidecar exists. `InvokeCommand` opens `IFileOpenDialog` folder
+picker, then uses `IFileOperation` to copy/move both image and sidecar.
+Supports undo via `FOF_ALLOWUNDO`.
+
+New CLSID `{A1C2D3E4-5F60-4718-B9CA-0D1E2F3A4B5C}` registered under
+`HKCR\SystemFileAssociations\.<ext>\shellex\ContextMenuHandlers\XmpSidecar`
+for all supported extensions. `DllGetClassObject` dispatches on CLSID.
+`src/registry.rs` updated for register/unregister.
+
+Debug + release builds pass. All 20 existing tests pass.
+**Status:** completed 2026-04-13.
+
+### #23 — Manual Explorer testing of context menu ✅ DONE
+Verified in VM on test-images:
+- Right-click DSCF1004.RAF (has sidecar): "Copy with sidecar" and
+  "Move with sidecar" appear under "Show more options" (Win11 modern
+  context menu puts classic IContextMenu items there by default).
+- Right-click DSCF1001.RAF (no sidecar): items do not appear.
+- Copy and Move both work correctly, transferring image + sidecar.
+**Status:** completed 2026-04-13.
+
 ## Resume here
 
-All milestones M0-M8 complete.
+All milestones M0-M9 complete.
 
 ## Context notes
 

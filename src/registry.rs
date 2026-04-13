@@ -6,11 +6,13 @@ use windows::Win32::UI::Shell::PropertiesSystem::{
     PSRegisterPropertySchema, PSUnregisterPropertySchema,
 };
 
-use crate::CLSID_XMP_HANDLER;
+use crate::{CLSID_XMP_CONTEXT_MENU, CLSID_XMP_HANDLER};
 
 const HANDLER_DESCRIPTION: &str = "XMP Sidecar Property Handler";
+const CONTEXT_MENU_DESCRIPTION: &str = "XMP Sidecar Context Menu";
 const HANDLER_BASE: &str =
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\PropertySystem\PropertyHandlers\";
+const CONTEXT_MENU_HANDLER_NAME: &str = "XmpSidecar";
 
 const EXTENSIONS: &[&str] = &[".jpg", ".cr2", ".nef", ".arw", ".dng", ".raf", ".tif", ".tiff"];
 
@@ -229,6 +231,41 @@ pub fn register() -> Result<()> {
         }
     }
 
+    // 5. Register context menu handler CLSID.
+    let ctx_clsid = guid_to_string(&CLSID_XMP_CONTEXT_MENU);
+
+    let ctx_clsid_key = create_key(
+        HKEY_CLASSES_ROOT,
+        &format!(r"CLSID\{ctx_clsid}"),
+        KEY_WRITE,
+    )?;
+    set_string(ctx_clsid_key, None, CONTEXT_MENU_DESCRIPTION)?;
+
+    let ctx_inproc_key = create_key(
+        HKEY_CLASSES_ROOT,
+        &format!(r"CLSID\{ctx_clsid}\InprocServer32"),
+        KEY_WRITE,
+    )?;
+    set_string(ctx_inproc_key, None, &dll_path)?;
+    set_string(ctx_inproc_key, Some("ThreadingModel"), "Apartment")?;
+
+    unsafe {
+        let _ = RegCloseKey(ctx_inproc_key);
+        let _ = RegCloseKey(ctx_clsid_key);
+    }
+
+    // 6. Register context menu handler for every supported extension.
+    for ext in EXTENSIONS {
+        let ctx_path = format!(
+            r"SystemFileAssociations\{ext}\shellex\ContextMenuHandlers\{CONTEXT_MENU_HANDLER_NAME}"
+        );
+        let hk = create_key(HKEY_CLASSES_ROOT, &ctx_path, KEY_WRITE)?;
+        set_string(hk, None, &ctx_clsid)?;
+        unsafe {
+            let _ = RegCloseKey(hk);
+        }
+    }
+
     Ok(())
 }
 
@@ -327,8 +364,26 @@ pub fn unregister() -> Result<()> {
         }
     }
 
-    // 2. Remove our CLSID key tree.
+    // 2. Remove our property handler CLSID key tree.
     let w = wide(&format!(r"CLSID\{clsid}"));
+    unsafe {
+        let _ = RegDeleteTreeW(HKEY_CLASSES_ROOT, PCWSTR(w.as_ptr()));
+    }
+
+    // 3. Remove context menu handler registrations for every extension.
+    for ext in EXTENSIONS {
+        let ctx_path = format!(
+            r"SystemFileAssociations\{ext}\shellex\ContextMenuHandlers\{CONTEXT_MENU_HANDLER_NAME}"
+        );
+        let w = wide(&ctx_path);
+        unsafe {
+            let _ = RegDeleteTreeW(HKEY_CLASSES_ROOT, PCWSTR(w.as_ptr()));
+        }
+    }
+
+    // 4. Remove context menu CLSID key tree.
+    let ctx_clsid = guid_to_string(&CLSID_XMP_CONTEXT_MENU);
+    let w = wide(&format!(r"CLSID\{ctx_clsid}"));
     unsafe {
         let _ = RegDeleteTreeW(HKEY_CLASSES_ROOT, PCWSTR(w.as_ptr()));
     }

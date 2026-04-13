@@ -67,6 +67,7 @@ Managed shell extensions are officially discouraged by Microsoft because the .NE
 | M6 | Test suite | Automated COM-level tests + manual Explorer checklist |
 | M7 | (Optional) Custom `.propdesc` schema | Non-PKEY XMP fields addable as Explorer columns |
 | M8 | Packaging, README, release | Installer built via GitHub releases workflow; version bumped in README |
+| M9 | Sidecar copy/move context menu | Right-click "Copy with sidecar" / "Move with sidecar" on supported file types works correctly in Explorer |
 
 ## M3 — XMP → Windows PKEY mapping (initial)
 
@@ -82,6 +83,46 @@ Managed shell extensions are officially discouraged by Microsoft because the .NE
 | `Iptc4xmpCore:Location` | `System.Photo.LocationName` |
 | `exif:GPS*` | `System.GPS.*` |
 | `photoshop:City` / `State` / `Country` | `System.GPS.*` or `System.Photo.*` (TBD) |
+
+## M9 — Sidecar copy/move context menu
+
+Right-click context menu extension that copies or moves the XMP sidecar alongside
+the image file when the user explicitly requests it.
+
+### Scope decisions
+
+- **Same DLL and repo** as the property handler. `DllGetClassObject` dispatches on
+  CLSID; a second `#[implement(IContextMenu)]` struct handles this extension.
+- **Separate CLSID** registered under `HKCR\SystemFileAssociations\.<ext>\shellex\ContextMenuHandlers\`.
+- **No automatic interception** of normal drag-and-drop or copy-paste — user invokes
+  explicitly via right-click. (Automatic copy-hook behavior is explicitly out of scope.)
+- Menu items appear on all supported extensions (same list as the property handler).
+
+### New files
+
+| File | Role |
+|---|---|
+| `src/context_menu.rs` | `IContextMenu` impl: `QueryContextMenu`, `InvokeCommand`, `GetCommandString` |
+
+### Shared code reused
+
+- `src/sidecar.rs` — `find_sidecar()` to locate the sidecar for a given image path
+- `src/registry.rs` — extension list; register/unregister the new CLSID alongside the existing one
+
+### Menu items
+
+| Item | Behaviour |
+|---|---|
+| Copy with sidecar | Copies image + sidecar to a user-chosen destination via `IFileOperation` |
+| Move with sidecar | Moves image + sidecar to a user-chosen destination via `IFileOperation` |
+
+If no sidecar exists for the file, the menu items are hidden (not greyed out).
+
+### Exit criterion
+
+Right-clicking a supported image file with a sidecar shows both menu items.
+Copy and Move both transfer the sidecar correctly. No sidecar → items not shown.
+Uninstall cleanly removes the context menu registration.
 
 ## Open questions / flags for future-self
 
