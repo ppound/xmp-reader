@@ -24,6 +24,12 @@ const CMD_COUNT: u32 = 2;
 const MENU_COPY_TEXT: &str = "Copy with sidecar";
 const MENU_MOVE_TEXT: &str = "Move with sidecar";
 
+/// An image file with an optional sidecar.
+struct FileEntry {
+    image: PathBuf,
+    sidecar: Option<PathBuf>,
+}
+
 // ---------------------------------------------------------------------------
 // Context menu handler -- one instance per right-click invocation
 // ---------------------------------------------------------------------------
@@ -34,10 +40,10 @@ pub struct ContextMenuHandler {
 }
 
 struct MenuState {
-    /// The image file the user right-clicked.
-    image_path: Option<PathBuf>,
-    /// The matching sidecar file (if any).
-    sidecar_path: Option<PathBuf>,
+    /// All selected image files, each with an optional sidecar.
+    entries: Vec<FileEntry>,
+    /// Whether at least one selected file has a sidecar.
+    has_any_sidecar: bool,
     /// The first command ID we were assigned by Explorer.
     id_cmd_first: u32,
 }
@@ -46,8 +52,8 @@ impl ContextMenuHandler {
     fn new() -> Self {
         Self {
             state: Mutex::new(MenuState {
-                image_path: None,
-                sidecar_path: None,
+                entries: Vec::new(),
+                has_any_sidecar: false,
                 id_cmd_first: 0,
             }),
         }
@@ -81,28 +87,37 @@ impl IShellExtInit_Impl for ContextMenuHandler_Impl {
         // medium.u.hGlobal contains an HDROP.
         let hdrop = HDROP(unsafe { medium.u.hGlobal.0 } as *mut _);
 
-        // We only handle single-file selection for now.
         let count = unsafe { DragQueryFileW(hdrop, 0xFFFFFFFF, None) };
         if count == 0 {
             unsafe { ReleaseStgMedium(&medium as *const _ as *mut _) };
             return Err(Error::from(E_FAIL));
         }
 
-        // Get the first file path.
-        let needed = unsafe { DragQueryFileW(hdrop, 0, None) } + 1;
-        let mut buf = vec![0u16; needed as usize];
-        unsafe { DragQueryFileW(hdrop, 0, Some(&mut buf)) };
+        // Extract all selected file paths and find their sidecars.
+        let mut entries = Vec::new();
+        let mut has_any_sidecar = false;
+        for i in 0..count {
+            let needed = unsafe { DragQueryFileW(hdrop, i, None) } + 1;
+            let mut buf = vec![0u16; needed as usize];
+            unsafe { DragQueryFileW(hdrop, i, Some(&mut buf)) };
+
+            let path_str = String::from_utf16_lossy(&buf[..buf.len() - 1]);
+            let image_path = PathBuf::from(&path_str);
+            let sidecar = sidecar::find_sidecar(&image_path);
+            if sidecar.is_some() {
+                has_any_sidecar = true;
+            }
+            entries.push(FileEntry {
+                image: image_path,
+                sidecar,
+            });
+        }
 
         unsafe { ReleaseStgMedium(&medium as *const _ as *mut _) };
 
-        let path_str = String::from_utf16_lossy(&buf[..buf.len() - 1]);
-        let image_path = PathBuf::from(&path_str);
-
-        let sidecar_path = sidecar::find_sidecar(&image_path);
-
         let mut state = self.state.lock().unwrap();
-        state.image_path = Some(image_path);
-        state.sidecar_path = sidecar_path;
+        state.entries = entries;
+        state.has_any_sidecar = has_any_sidecar;
 
         Ok(())
     }
@@ -128,8 +143,8 @@ impl IContextMenu_Impl for ContextMenuHandler_Impl {
 
         let state = self.state.lock().unwrap();
 
-        // Only show menu items if a sidecar exists.
-        if state.sidecar_path.is_none() {
+        // Only show menu items if at least one selected file has a sidecar.
+        if !state.has_any_sidecar {
             return Ok(());
         }
         drop(state);
@@ -187,17 +202,19 @@ impl IContextMenu_Impl for ContextMenuHandler_Impl {
         }
 
         let state = self.state.lock().unwrap();
-        let image_path = state
-            .image_path
-            .as_ref()
-            .ok_or_else(|| Error::from(E_FAIL))?
-            .clone();
-        let sidecar_path = state
-            .sidecar_path
-            .as_ref()
-            .ok_or_else(|| Error::from(E_FAIL))?
-            .clone();
+        let entries: Vec<_> = state
+            .entries
+            .iter()
+            .map(|e| FileEntry {
+                image: e.image.clone(),
+                sidecar: e.sidecar.clone(),
+            })
+            .collect();
         drop(state);
+
+        if entries.is_empty() {
+            return Err(Error::from(E_FAIL));
+        }
 
         let cmd_id = verb as u32;
         let is_move = match cmd_id {
@@ -209,8 +226,8 @@ impl IContextMenu_Impl for ContextMenuHandler_Impl {
         // Pick destination folder via IFileOpenDialog in folder-picker mode.
         let dest_folder = pick_folder(pici.hwnd)?;
 
-        // Perform the file operation.
-        perform_file_op(&image_path, &sidecar_path, &dest_folder, is_move)
+        // Perform the file operation for all entries in a single IFileOperation batch.
+        perform_file_op(&entries, &dest_folder, is_move)
     }
 
     fn GetCommandString(
@@ -229,8 +246,8 @@ impl IContextMenu_Impl for ContextMenuHandler_Impl {
         }
 
         let help = match idcmd as u32 {
-            CMD_COPY => "Copy this file and its XMP sidecar to another folder",
-            CMD_MOVE => "Move this file and its XMP sidecar to another folder",
+            CMD_COPY => "Copy selected files and their XMP sidecars to another folder",
+            CMD_MOVE => "Move selected files and their XMP sidecars to another folder",
             _ => return Err(Error::from(E_INVALIDARG)),
         };
 
@@ -280,8 +297,7 @@ fn pick_folder(hwnd_owner: HWND) -> Result<PathBuf> {
 // ---------------------------------------------------------------------------
 
 fn perform_file_op(
-    image_path: &Path,
-    sidecar_path: &Path,
+    entries: &[FileEntry],
     dest_folder: &Path,
     is_move: bool,
 ) -> Result<()> {
@@ -303,26 +319,13 @@ fn perform_file_op(
         let dest_item: IShellItem =
             SHCreateItemFromParsingName(PCWSTR(dest_wide.as_ptr()), None)?;
 
-        // Helper: add one file to the operation.
-        let add_file = |path: &Path| -> Result<()> {
-            let wide: Vec<u16> = path
-                .to_string_lossy()
-                .encode_utf16()
-                .chain(core::iter::once(0))
-                .collect();
-            let item: IShellItem =
-                SHCreateItemFromParsingName(PCWSTR(wide.as_ptr()), None)?;
-
-            if is_move {
-                file_op.MoveItem(&item, &dest_item, None, None)?;
-            } else {
-                file_op.CopyItem(&item, &dest_item, None, None)?;
+        // Add all images (and their sidecars when present) to the operation.
+        for entry in entries {
+            add_file_to_op(&file_op, &entry.image, &dest_item, is_move)?;
+            if let Some(ref sidecar) = entry.sidecar {
+                add_file_to_op(&file_op, sidecar, &dest_item, is_move)?;
             }
-            Ok(())
-        };
-
-        add_file(image_path)?;
-        add_file(sidecar_path)?;
+        }
 
         file_op.PerformOperations()?;
 
@@ -333,6 +336,28 @@ fn perform_file_op(
 
         Ok(())
     }
+}
+
+unsafe fn add_file_to_op(
+    file_op: &IFileOperation,
+    path: &Path,
+    dest_item: &IShellItem,
+    is_move: bool,
+) -> Result<()> {
+    let wide: Vec<u16> = path
+        .to_string_lossy()
+        .encode_utf16()
+        .chain(core::iter::once(0))
+        .collect();
+    let item: IShellItem =
+        SHCreateItemFromParsingName(PCWSTR(wide.as_ptr()), None)?;
+
+    if is_move {
+        file_op.MoveItem(&item, dest_item, None, None)?;
+    } else {
+        file_op.CopyItem(&item, dest_item, None, None)?;
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
