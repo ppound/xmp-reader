@@ -7,7 +7,7 @@ without needing Bridge, Lightroom, or any other DAM.
 Implemented as a native Rust COM DLL registered as a Windows **property handler**
 and **context menu extension**. Read-only. No write-back.
 
-> **Status:** v0.1.0 released.
+> **Status:** v0.2.0 released.
 
 ---
 
