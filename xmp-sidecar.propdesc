@@ -37,7 +37,7 @@
         formatID="{B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B}"
         propID="4">
       <searchInfo inInvertedIndex="true" isColumn="true" />
-      <typeInfo type="String" multipleValues="false" isViewable="true" />
+      <typeInfo type="String" multipleValues="true" isViewable="true" />
       <labelInfo label="People in Image" />
       <displayInfo defaultColumnWidth="24">
         <stringFormat formatAs="General" />
@@ -63,7 +63,7 @@
         formatID="{B2A7E62A-1D9C-4F5E-8A3B-7C6D5E4F3A2B}"
         propID="6">
       <searchInfo inInvertedIndex="true" isColumn="true" />
-      <typeInfo type="String" multipleValues="false" isViewable="true" />
+      <typeInfo type="String" multipleValues="true" isViewable="true" />
       <labelInfo label="Cloud Uploads" />
       <displayInfo defaultColumnWidth="20">
         <stringFormat formatAs="General" />

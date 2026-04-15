@@ -7,7 +7,7 @@ without needing Bridge, Lightroom, or any other DAM.
 Implemented as a native Rust COM DLL registered as a Windows **property handler**
 and **context menu extension**. Read-only. No write-back.
 
-> **Status:** v0.2.0 released.
+> **Status:** v0.3.0 released.
 
 ---
 
@@ -141,6 +141,58 @@ These appear as addable columns in Explorer's "Choose columns" dialog under the
 
 ---
 
+## Searching with AQS
+
+Once files are indexed by Windows Search, you can search by XMP sidecar metadata
+directly in Explorer's search box or the Start menu using
+[Advanced Query Syntax (AQS)](https://learn.microsoft.com/en-us/windows/win32/search/advanced-query-syntax).
+
+> **Note:** Files must be in an indexed location. If searches return no results after
+> installing, go to **Settings → Privacy & Security → Searching Windows → Advanced
+> indexing options → Advanced → Rebuild** and wait for the index to complete.
+
+### Standard property queries
+
+| What you want | AQS query |
+|---|---|
+| Files with a specific title | `title:"golden hour"` |
+| Files with a keyword | `keywords:vacation` |
+| Files by author | `author:"Alice"` |
+| Files with a description containing a word | `comment:sunset` |
+| 4-star rated files | `System.SimpleRating:=4` |
+| 3 stars or higher | `System.SimpleRating:>=3` |
+| Unrated files | `System.SimpleRating:=0` |
+| Files taken in a date range | `datetaken:2024` |
+
+**Rating note:** Windows Search's built-in `rating:` keyword resolves to the
+`System.Rating` property which uses a 0–99 scale (1 star = 1, 2 = 25, 3 = 50,
+4 = 75, 5 = 99). For intuitive 1–5 star comparisons use `System.SimpleRating:`
+instead, which xmp-reader also exposes.
+
+### Custom property queries
+
+Custom XMP fields use their full canonical name:
+
+| What you want | AQS query |
+|---|---|
+| Files with a specific headline | `XmpSidecar.Headline:"product launch"` |
+| Files shot at a location | `XmpSidecar.Location:Paris` |
+| Files featuring a person | `XmpSidecar.PersonInImage:"Bob"` |
+| Files tagged with a place | `XmpSidecar.Place:"Central Park"` |
+| Files with a specific cloud upload tag | `XmpSidecar.CloudUploads:instagram` |
+
+### Combining queries
+
+AQS supports `AND`, `OR`, `NOT` and parentheses:
+
+```
+keywords:vacation AND System.SimpleRating:>=4
+author:"Alice" AND datetaken:2024
+XmpSidecar.PersonInImage:"Bob" AND keywords:wedding
+```
+
+---
+
 ## Development
 
 See [docs/dev-environment.md](docs/dev-environment.md) for the full setup guide
@@ -186,6 +238,7 @@ cargo build --release
 | M7 — Custom `.propdesc` schema | Done |
 | M8 — Packaging + release | Done |
 | M9 — Sidecar copy/move context menu | Done |
+| M10 — AQS search property format fixes | Done |
 
 ---
 

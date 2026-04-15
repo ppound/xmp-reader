@@ -1,5 +1,7 @@
 # Rust build output — kept VM-local via CARGO_TARGET_DIR
 /target/
+# Local release staging — CI builds the real release artifacts
+/dist/
 /test-images/                   
 # Windows sandbox ephemeral files
 sandbox/test-fixtures/*.jpg

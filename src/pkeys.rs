@@ -12,6 +12,17 @@ pub const PKEY_RATING: PROPERTYKEY = PROPERTYKEY {
     pid: 9,
 };
 
+// System.SimpleRating  {A09F084E-AD41-489F-8076-AA5BE3082BCA} pid 100
+pub const PKEY_SIMPLE_RATING: PROPERTYKEY = PROPERTYKEY {
+    fmtid: GUID {
+        data1: 0xA09F084E,
+        data2: 0xAD41,
+        data3: 0x489F,
+        data4: [0x80, 0x76, 0xAA, 0x5B, 0xE3, 0x08, 0x2B, 0xCA],
+    },
+    pid: 100,
+};
+
 // System.Title  {F29F85E0-4FF9-1068-AB91-08002B27B3D9} pid 2
 pub const PKEY_TITLE: PROPERTYKEY = PROPERTYKEY {
     fmtid: GUID {

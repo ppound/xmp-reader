@@ -1,9 +1,8 @@
 # Task state — handoff snapshot
 
-> Updated 2026-04-12.
+> Updated 2026-04-15.
 >
-> **Current milestone: M4 — Embedded metadata fallback + merge.**
-> **Next action: read embedded EXIF/XMP from JPEGs via WIC so sidecar-less files don't regress.**
+> **All milestones M0–M10 complete.**
 
 ## M0.5 tasks
 
@@ -234,9 +233,173 @@ Verified in VM on test-images:
 - Copy and Move both work correctly, transferring image + sidecar.
 **Status:** completed 2026-04-13.
 
+## M10 tasks
+
+### #24 — AQS search property format fixes ✅ DONE
+
+**Problem diagnosed 2026-04-15.**
+
+Explorer columns show all XMP sidecar data correctly. Windows Search AQS queries mostly
+do not work because we return multi-valued properties as a single joined VT_BSTR instead
+of VT_VECTOR|VT_LPWSTR, and we are missing System.SimpleRating.
+
+**Confirmed working before this fix:**
+- `title:"golden hour"` — System.Title is VT_BSTR (single-value), indexes correctly. ✅
+
+**Broken before this fix:**
+- `keywords:vacation` — Keywords returned as `"vacation; mountains"` VT_BSTR; indexer
+  stores as one blob, individual element matching fails.
+- `System.Author:"Alice"` — same issue.
+- `XmpSidecar.PersonInImage:"Alice"` — same issue.
+- `XmpSidecar.CloudUploads:"someservice"` — same issue.
+- `rating:<5` — AQS `rating:` maps to System.Rating (0–99 scale). A 4-star image is
+  stored as 75; `75 < 5` is false. `rating:>3` works only by coincidence (75 > 3).
+  `rating:<99` also works (75 < 99). Fix: expose System.SimpleRating (1–5) so users can
+  write `System.SimpleRating:<5`.
+
+**Changes required:**
+
+#### 1. `src/pkeys.rs` — add PKEY_SIMPLE_RATING
+
+```rust
+// System.SimpleRating  {A09F084E-AD41-489F-8076-AA5BE3082BCA} pid 100
+pub const PKEY_SIMPLE_RATING: PROPERTYKEY = PROPERTYKEY {
+    fmtid: GUID {
+        data1: 0xA09F084E,
+        data2: 0xAD41,
+        data3: 0x489F,
+        data4: [0x80, 0x76, 0xAA, 0x5B, 0xE3, 0x08, 0x2B, 0xCA],
+    },
+    pid: 100,
+};
+```
+
+#### 2. `src/handler.rs` — two changes
+
+**A. Add a string-vector helper** (above `build_properties`):
+
+```rust
+use windows::Win32::UI::Shell::PropertiesSystem::InitPropVariantFromStringAsVector;
+
+/// Build a VT_VECTOR|VT_LPWSTR PROPVARIANT from a slice of strings.
+/// Uses InitPropVariantFromStringAsVector which splits on ";".
+/// Caller must ensure strings do not contain ";".
+fn string_vec_propvar(strings: &[String]) -> PROPVARIANT {
+    debug_assert!(!strings.is_empty());
+    let joined: Vec<u16> = strings
+        .join(";")
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    let mut pv = PROPVARIANT::default();
+    unsafe {
+        let _ = InitPropVariantFromStringAsVector(PCWSTR(joined.as_ptr()), &mut pv);
+    }
+    pv
+}
+```
+
+**B. Update `build_properties`** — replace the four joined-string entries and add
+SimpleRating:
+
+```rust
+// Rating — keep System.Rating (0-99), also emit System.SimpleRating (1-5)
+if let Some(stars) = fields.rating {
+    let win_rating = xmp_rating_to_windows(stars);
+    props.push(PropEntry { key: PKEY_RATING,        value: PROPVARIANT::from(win_rating) });
+    props.push(PropEntry { key: PKEY_SIMPLE_RATING,  value: PROPVARIANT::from(stars as u32) });
+}
+
+// Keywords — VT_VECTOR|VT_LPWSTR (was joined VT_BSTR)
+if !fields.keywords.is_empty() {
+    props.push(PropEntry { key: PKEY_KEYWORDS, value: string_vec_propvar(&fields.keywords) });
+}
+
+// Authors — VT_VECTOR|VT_LPWSTR (was joined VT_BSTR)
+if !fields.creators.is_empty() {
+    props.push(PropEntry { key: PKEY_AUTHOR, value: string_vec_propvar(&fields.creators) });
+}
+
+// PersonInImage — VT_VECTOR|VT_LPWSTR (was joined VT_BSTR)
+if !fields.person_in_image.is_empty() {
+    props.push(PropEntry {
+        key: PKEY_XMP_PERSON_IN_IMAGE,
+        value: string_vec_propvar(&fields.person_in_image),
+    });
+}
+
+// CloudUploads — VT_VECTOR|VT_LPWSTR (was joined VT_BSTR)
+if !fields.photostat_cloud_uploads.is_empty() {
+    props.push(PropEntry {
+        key: PKEY_XMP_CLOUD_UPLOADS,
+        value: string_vec_propvar(&fields.photostat_cloud_uploads),
+    });
+}
+```
+
+Also update the use line at the top of handler.rs to include `PKEY_SIMPLE_RATING` from
+`crate::pkeys`.
+
+The `build_properties_full` unit test currently asserts `props.len() == 8`. After adding
+SimpleRating it will be 9. Update that assert.
+
+#### 3. `xmp-sidecar.propdesc` — fix multipleValues for PersonInImage and CloudUploads
+
+Change:
+```xml
+<typeInfo type="String" multipleValues="false" isViewable="true" />
+```
+to:
+```xml
+<typeInfo type="String" multipleValues="true" isViewable="true" />
+```
+for `XmpSidecar.PersonInImage` (pid 4) and `XmpSidecar.CloudUploads` (pid 6).
+
+**After the fix, AQS that should work:**
+
+| Query | Explanation |
+|---|---|
+| `keywords:vacation` | individual keyword match |
+| `author:"Alice"` | individual author match |
+| `rating:>50` | System.Rating 0-99 scale (3+ stars = >50) |
+| `System.SimpleRating:>3` | 4 or 5 star images |
+| `System.SimpleRating:<5` | 1–4 star images |
+| `XmpSidecar.PersonInImage:"Alice"` | person in image match |
+| `XmpSidecar.Headline:"sunrise"` | headline match (already worked) |
+| `XmpSidecar.Location:"Paris"` | location match (already worked) |
+
+**Verification steps after implementing:**
+1. `cargo test` — all tests pass (update `build_properties_full` count to 9).
+2. Build release DLL, sign, reinstall in VM.
+3. Trigger reindex: Settings → Search → Windows Search → Advanced → Rebuild index.
+   Wait for completion.
+4. Test each AQS query above against known test images.
+
+**Status:** completed 2026-04-15. Verified in VM after full index rebuild:
+- Multi-valued AQS queries (keywords, author, PersonInImage, CloudUploads) now
+  match individual elements.
+- `System.SimpleRating:<5` / `:>3` / `:=4` work as expected.
+- AQS `rating:` remains tied to System.Rating (0–99) — a Windows AQS keyword
+  resolution behavior we can't override from a property handler, so users
+  needing star-based numeric comparisons should use `System.SimpleRating`.
+
+Code summary:
+- `src/pkeys.rs`: added `PKEY_SIMPLE_RATING`.
+- `src/handler.rs`: added `string_vec_propvar` helper using
+  `InitPropVariantFromStringAsVector` (imported from
+  `windows::Win32::System::Com::StructuredStorage`; the function returns
+  `Result<PROPVARIANT>` in windows 0.58, not the out-parameter form shown in the
+  plan). Keywords / Author / PersonInImage / CloudUploads now emitted as
+  VT_VECTOR|VT_LPWSTR. Rating path also emits `System.SimpleRating` (1–5).
+- `xmp-sidecar.propdesc`: `multipleValues="true"` for PersonInImage (pid 4) and
+  CloudUploads (pid 6).
+- `build_properties_full` test updated 8 → 9. `cargo test --lib` 20/20 pass.
+
 ## Resume here
 
-All milestones M0-M9 complete.
+All milestones M0–M10 complete. No active work queued.
+
+All milestones M0–M9 complete.
 
 ## Context notes
 

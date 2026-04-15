@@ -4,12 +4,29 @@ use std::sync::Mutex;
 use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::System::Com::*;
+use windows::Win32::System::Com::StructuredStorage::InitPropVariantFromStringAsVector;
 use windows::Win32::UI::Shell::PropertiesSystem::*;
 use windows_core::PROPVARIANT;
 
 use crate::embedded;
 use crate::pkeys::*;
 use crate::sidecar::{self, XmpFields};
+
+/// Build a VT_VECTOR|VT_LPWSTR PROPVARIANT from a slice of strings.
+/// Uses InitPropVariantFromStringAsVector which splits on ";".
+/// Caller must ensure strings do not contain ";".
+fn string_vec_propvar(strings: &[String]) -> PROPVARIANT {
+    debug_assert!(!strings.is_empty());
+    let joined: Vec<u16> = strings
+        .join(";")
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    unsafe {
+        InitPropVariantFromStringAsVector(PCWSTR(joined.as_ptr()))
+            .unwrap_or_default()
+    }
+}
 
 const STG_E_ACCESSDENIED: HRESULT = HRESULT(0x80030005_u32 as i32);
 
@@ -38,20 +55,16 @@ fn build_properties(fields: &XmpFields) -> Vec<PropEntry> {
     }
 
     if !fields.keywords.is_empty() {
-        // System.Keywords expects VT_VECTOR|VT_LPWSTR, but Explorer also
-        // accepts a semicolon-separated VT_BSTR string.
-        let joined = fields.keywords.join("; ");
         props.push(PropEntry {
             key: PKEY_KEYWORDS,
-            value: PROPVARIANT::from(BSTR::from(joined.as_str())),
+            value: string_vec_propvar(&fields.keywords),
         });
     }
 
     if !fields.creators.is_empty() {
-        let joined = fields.creators.join("; ");
         props.push(PropEntry {
             key: PKEY_AUTHOR,
-            value: PROPVARIANT::from(BSTR::from(joined.as_str())),
+            value: string_vec_propvar(&fields.creators),
         });
     }
 
@@ -60,6 +73,10 @@ fn build_properties(fields: &XmpFields) -> Vec<PropEntry> {
         props.push(PropEntry {
             key: PKEY_RATING,
             value: PROPVARIANT::from(win_rating),
+        });
+        props.push(PropEntry {
+            key: PKEY_SIMPLE_RATING,
+            value: PROPVARIANT::from(stars as u32),
         });
     }
 
@@ -89,10 +106,9 @@ fn build_properties(fields: &XmpFields) -> Vec<PropEntry> {
     }
 
     if !fields.person_in_image.is_empty() {
-        let joined = fields.person_in_image.join("; ");
         props.push(PropEntry {
             key: PKEY_XMP_PERSON_IN_IMAGE,
-            value: PROPVARIANT::from(BSTR::from(joined.as_str())),
+            value: string_vec_propvar(&fields.person_in_image),
         });
     }
 
@@ -104,10 +120,9 @@ fn build_properties(fields: &XmpFields) -> Vec<PropEntry> {
     }
 
     if !fields.photostat_cloud_uploads.is_empty() {
-        let joined = fields.photostat_cloud_uploads.join("; ");
         props.push(PropEntry {
             key: PKEY_XMP_CLOUD_UPLOADS,
-            value: PROPVARIANT::from(BSTR::from(joined.as_str())),
+            value: string_vec_propvar(&fields.photostat_cloud_uploads),
         });
     }
 
@@ -285,8 +300,8 @@ mod tests {
             photostat_cloud_uploads: Vec::new(),
         };
         let props = build_properties(&fields);
-        // 7 standard + 1 custom headline = 8
-        assert_eq!(props.len(), 8);
+        // 7 standard + SimpleRating + 1 custom headline = 9
+        assert_eq!(props.len(), 9);
 
         // Verify title is present
         assert!(props.iter().any(|p| p.key.fmtid == PKEY_TITLE.fmtid && p.key.pid == PKEY_TITLE.pid));
