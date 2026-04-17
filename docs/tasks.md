@@ -2,7 +2,8 @@
 
 > Updated 2026-04-15.
 >
-> **All milestones M0–M10 complete.**
+> **Current milestone: M11 — SignPath code signing integration.**
+> **Status: blocked on SignPath approval (submitted 2026-04-16).**
 
 ## M0.5 tasks
 
@@ -395,11 +396,143 @@ Code summary:
   CloudUploads (pid 6).
 - `build_properties_full` test updated 8 → 9. `cargo test --lib` 20/20 pass.
 
+## M10.5 tasks — DisableProcessIsolation fix for Windows Search indexer
+
+### #24b — Add DisableProcessIsolation to handler registration
+
+**Problem diagnosed 2026-04-17.**
+
+Windows Search indexer runs property handlers inside an isolated
+`SearchProtocolHost.exe` process. In isolation mode the indexer ONLY calls
+`IInitializeWithStream`. Our handler only implements `IInitializeWithFile`, so
+the indexer silently skips initialization and stores empty properties. Explorer
+is unaffected because it calls `IInitializeWithFile` directly.
+
+The fix is a single DWORD registry value on our CLSID key:
+`HKCR\CLSID\{D4B5A6C7-...}\DisableProcessIsolation = 1`
+
+This tells the indexer to run the handler in-process and call
+`IInitializeWithFile` instead. Microsoft documents this as required for any
+property handler that does not implement `IInitializeWithStream`.
+
+**Diagnostic evidence:**
+- `query-index.ps1` showed the file IS in the index but every property
+  (including standard Title, Keywords, Rating) is empty.
+- No Code Integrity blocks, no SearchProtocolHost crashes, no event log errors.
+- Explorer columns show all data correctly (not affected by process isolation).
+
+**Testing in progress:** `DisableProcessIsolation = 1` was set manually on the
+host via `New-ItemProperty` on 2026-04-17. Waiting for index rebuild to confirm.
+
+**Code change required (after confirmation):**
+
+In `src/registry.rs` `register()`, after writing InprocServer32, add:
+
+```rust
+// Tell the Windows Search indexer to use IInitializeWithFile (we don't
+// implement IInitializeWithStream). Without this the indexer skips our
+// handler and stores empty properties.
+let dword_one: u32 = 1;
+let bytes = dword_one.to_ne_bytes();
+let w = wide("DisableProcessIsolation");
+unsafe {
+    RegSetValueExW(
+        clsid_key,
+        PCWSTR(w.as_ptr()),
+        0,
+        REG_DWORD,
+        Some(&bytes),
+    )
+    .ok()?;
+}
+```
+
+Also update `unregister()` — no change needed since we already delete the
+entire CLSID key tree.
+
+Bump version to v0.3.1, commit, tag, push.
+
+**Status:** completed 2026-04-17. Manual registry test confirmed properties
+appear in index. Code change applied to `src/registry.rs` `register()`.
+
+---
+
+## M11 tasks — SignPath code signing integration
+
+**Goal:** Replace the self-signed dev cert with a publicly trusted certificate
+via SignPath.io (free for OSS). Users will no longer need to manually install a
+certificate — the DLL signature will be trusted by Windows out of the box.
+
+Note: signing is NOT the cause of the empty-index issue (that was
+DisableProcessIsolation, see M10.5). Signing is still needed for distribution
+trust — unsigned DLLs trigger SmartScreen warnings and may be blocked by
+enterprise WDAC policies.
+
+**Prerequisite:** SignPath application approved (submitted 2026-04-16, waiting).
+
+### #25 — Configure SignPath project
+
+Once approved:
+1. Log into SignPath, create a project for `xmp-reader`.
+2. Create a signing policy (e.g. `release-signing`) for the DLL artifact.
+3. Configure the artifact configuration to sign `xmp_reader.dll` (Authenticode).
+4. Install the SignPath GitHub App on the `xmp-reader` repo and grant access.
+5. Note the `organization-id`, `project-slug`, `signing-policy-slug`, and
+   `artifact-configuration-slug` — needed for the workflow.
+
+**Status:** blocked on SignPath approval.
+
+### #26 — Update GitHub Actions release workflow
+
+Modify `.github/workflows/release.yml` to:
+1. After build + test, upload the unsigned DLL as a workflow artifact
+   (`actions/upload-artifact`).
+2. Add a `sign` job (depends on `build`) that uses
+   `SignPath/github-action-submit-signing-request` to submit the artifact.
+3. Add a `release` job (depends on `sign`) that downloads the signed DLL,
+   packages it into the zip with propdesc + scripts, and creates the GitHub
+   Release.
+
+Key details:
+- The workflow must run on GitHub-hosted runners (required by SignPath for OSS).
+- The repo already uses `windows-latest` — this qualifies.
+- SignPath signs asynchronously; the action has a `wait-for-completion` option.
+- Need to add `id-token: write` permission for OIDC trust between GitHub and
+  SignPath.
+
+**Status:** not started, depends on #25.
+
+### #27 — Remove self-signed cert from install workflow
+
+Once SignPath signing is in place:
+1. Remove `scripts/sign-dll.ps1` (no longer needed for releases).
+2. Update `docs/dev-environment.md` §8 to note the self-signed cert is for
+   local dev/testing only; releases are signed via SignPath CI.
+3. Keep the self-signed cert setup in dev-environment.md for local dev builds
+   in the VM.
+
+**Status:** not started, depends on #26.
+
+### #28 — Test signed release end-to-end
+
+1. Push a `v*` tag to trigger the release workflow.
+2. Download the release zip, verify the DLL signature:
+   `Get-AuthenticodeSignature xmp_reader.dll` — should show a valid signature
+   from a public CA (not the self-signed dev cert).
+3. Install on a clean Windows machine (or Windows Sandbox via `sandbox/smoke-test.wsb`)
+   without importing any certificates.
+4. Verify: Explorer columns show sidecar metadata, AND AQS search works
+   (the indexer trusts the DLL without manual cert install).
+
+**Status:** not started, depends on #26.
+
 ## Resume here
 
-All milestones M0–M10 complete. No active work queued.
+M10.5 complete and shipped as v0.3.1 (2026-04-17). Tests 20/20, release DLL
+signed + installed in VM, Explorer columns + AQS search verified.
 
-All milestones M0–M9 complete.
+M11 — SignPath code signing. Blocked on SignPath approval (submitted
+2026-04-16). Start with task #25 once approved.
 
 ## Context notes
 

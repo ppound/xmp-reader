@@ -111,6 +111,12 @@ fn set_string(key: HKEY, name: Option<&str>, value: &str) -> Result<()> {
     unsafe { RegSetValueExW(key, name_pcwstr, 0, REG_SZ, Some(bytes)).ok() }
 }
 
+fn set_dword(key: HKEY, name: &str, value: u32) -> Result<()> {
+    let name_w = wide(name);
+    let bytes = value.to_ne_bytes();
+    unsafe { RegSetValueExW(key, PCWSTR(name_w.as_ptr()), 0, REG_DWORD, Some(&bytes)).ok() }
+}
+
 fn get_string(key: HKEY, name: Option<&str>) -> Result<String> {
     let name_w = name.map(wide);
     let name_pcwstr = match &name_w {
@@ -200,6 +206,7 @@ pub fn register() -> Result<()> {
         KEY_WRITE,
     )?;
     set_string(clsid_key, None, HANDLER_DESCRIPTION)?;
+    set_dword(clsid_key, "DisableProcessIsolation", 1)?;
 
     // 2. HKCR\CLSID\{guid}\InprocServer32
     let inproc_key = create_key(

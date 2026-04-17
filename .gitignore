@@ -1,3 +1,5 @@
+# Claude Code local state (agent worktrees, settings)
+/.claude/
 # Rust build output — kept VM-local via CARGO_TARGET_DIR
 /target/
 # Local release staging — CI builds the real release artifacts
